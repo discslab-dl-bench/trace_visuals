@@ -84,7 +84,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     #
     # Plot GPU
     #
-    df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",",on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
+    df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     if start is not None:
@@ -141,6 +141,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     for i, pid in enumerate(pids):
         print(f"Processing pid {pid}")
 
+        # FIXME: There is no st_end_data dir for DLIO workload
         df = pd.read_csv(
             os.path.join(data_dir, f"st_end_data/st_end_data_{pid}"), names=["start_date", "end_date", "event"]
         )

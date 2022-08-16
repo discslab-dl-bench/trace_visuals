@@ -116,6 +116,8 @@ def process_cpu_data(cpu_trace, current_date):
 
         # Make UTC timestamp from time and current date
         cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(5, "h"))
+        # remove the extra "PM" in here
+        cols.remove("PM")
         outcsv.write(",".join(cols) + "\n")
 
     infile.close()
