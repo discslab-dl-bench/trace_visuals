@@ -2,10 +2,10 @@
 
 
 cd data
-traces_dir=$1
+traces_dir=$1 # name of the dir contains all raw trace results
 ta_traces_dir="ta_${traces_dir}"
-num_gpus=$2
-exp_name=$3
+num_gpus=$2 # number of gpus used in the current experiment
+exp_name=$3 # the name you want for the experiment plots dir
 py=python3
 
 
