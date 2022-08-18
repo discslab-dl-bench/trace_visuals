@@ -16,8 +16,9 @@ def process_timeline(datadir):
     have_not_seen_epoch = True
 
     for i, log in enumerate(all_logs):
-
-        ux_time = np.datetime64(log["time_ms"], "ms") + np.timedelta64(5, "h")
+        
+        # change from +5h to +1h
+        ux_time = np.datetime64(log["time_ms"], "ms") + np.timedelta64(1, "h")
         # ux_time = np.datetime64(log["time_ms"], "ms")
         key_parts = log["key"].split("_")
 
