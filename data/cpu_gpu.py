@@ -35,7 +35,7 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
             try:
                 cols = " ".join(line.split()).replace("-", "0").split(" ")
                 if cols[2] == "0":
-                    # Combine cols 0 and 1 into a UTC timestamp
+                    # Combine cols 0 and 1 into a UTC timestamp for every $num_gpus (ex: 8, 4, ...) lines
                     date = cols[0]
                     ts = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{cols[1]}"
                     ts = str(np.datetime64(ts) + np.timedelta64(5, "h"))
@@ -114,12 +114,14 @@ def process_cpu_data(cpu_trace, current_date):
             current_date += 1
             date_changed = True
 
-        # Make UTC timestamp from time and current date
-        cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(5, "h"))
-        # remove the extra "PM"  or "AM" in here
-        if cols[1] == "PM" or cols[1] == "AM":
-            remove = cols[1]
-            cols.remove(remove)
+         # Make UTC timestamp from time and current date (if it's PM, then we add 12 additional hrs, 12 + 5 = 17)
+        if cols[1] == "PM":
+            cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(17, "h"))
+        else:
+            cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(5, "h"))
+        # remove the extra "PM"  or "AM" col in here
+        remove = cols[1]
+        cols.remove(remove)
         outcsv.write(",".join(cols) + "\n")
 
     infile.close()
