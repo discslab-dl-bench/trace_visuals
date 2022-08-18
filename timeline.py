@@ -151,7 +151,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         df = df[["start_date", "end_date", "event"]]
         df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
         df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
-        embed()
+        # embed()
         if start is not None:
             df = df[df["start_date"] >= np.datetime64(start)]
         if end is not None:
@@ -362,11 +362,11 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid trace directory")
         exit(-1) 
 
-    # plot_pids_timeline_cpu_gpu(
-    #     args.data_dir,
-    #     title=args.experiment_name,
-    #     filename=f"timelines/{args.experiment_name}/overview.png",
-    # )
+    plot_pids_timeline_cpu_gpu(
+        args.data_dir,
+        title=args.experiment_name,
+        filename=f"timelines/{args.experiment_name}/overview.png",
+    )
 
     # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
     interesting_time_ranges = get_plotting_ranges(args.data_dir)
