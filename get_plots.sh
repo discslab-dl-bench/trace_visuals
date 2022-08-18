@@ -17,7 +17,7 @@ then
 fi
 
 
-preprocessing
+# preprocessing traces
 ./preprocess_traces.sh $traces_dir $num_gpus
 
 cd ..
