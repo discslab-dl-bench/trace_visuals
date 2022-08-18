@@ -17,8 +17,8 @@ def process_timeline(datadir):
 
     for i, log in enumerate(all_logs):
 
-        # ux_time = np.datetime64(log["time_ms"], "ms") + np.timedelta64(5, "h")
-        ux_time = np.datetime64(log["time_ms"], "ms")
+        ux_time = np.datetime64(log["time_ms"], "ms") + np.timedelta64(5, "h")
+        # ux_time = np.datetime64(log["time_ms"], "ms")
         key_parts = log["key"].split("_")
 
         evt = key_parts[0].upper()
