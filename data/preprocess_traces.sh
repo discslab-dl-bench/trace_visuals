@@ -67,11 +67,11 @@ echo -e "#####################################################################"
 ${py} cpu_gpu.py $ta_outdir/gpu_data/gpu.all $ta_outdir/cpu_data/cpu.all $num_gpus
 
 # specific to unet3d workload only!
-# echo -e "####################################################################"
-# echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
-# echo -e "####################################################################"
-# # Process the app log for timeline plotting
-# ./mllog.sh $traces_dir/unet3d.log $ta_outdir
-# ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+echo -e "####################################################################"
+echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
+echo -e "####################################################################"
+# Process the app log for timeline plotting
+./mllog.sh $traces_dir/unet3d.log $ta_outdir
+${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
 
 echo -e "Preprocessing DONE\n"
