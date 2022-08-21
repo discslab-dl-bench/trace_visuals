@@ -2,7 +2,7 @@
 
 
 cd data
-traces_dir=$1 # name of the dir contains all raw trace results
+traces_dir=$1 # name of the dir contains all raw trace results (no need to add data/ in front)
 ta_traces_dir="ta_${traces_dir}"
 num_gpus=$2 # number of gpus used in the current experiment
 exp_name=$3 # the name you want for the experiment plots dir
