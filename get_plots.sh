@@ -9,29 +9,35 @@ ta_traces_dir="ta_${traces_dir}"
 py=python3
 
 
-# if [ $# -lt 3 ]
-# then
-#     # example: ./get_plots.sh exp_4gpus_20220818150543 4 4gpu
-# 	echo "Usage: $0 <traces_dir> <numgpus> <experiment_name>"
-# 	exit 1
-# fi
+if [ $# -lt 1 ]
+then
+    # example: ./get_plots.sh data/trace0_exp_results
+	echo "Usage: $0 <traces_dir>"
+	exit 1
+fi
 
 
 # preprocessing traces
-
 for trace_dir in "$traces_dir"/*; do
-	echo $trace_dir
 	trace_expname=$(basename $trace_dir)
 	num_gpus=${trace_expname:0:1}
-	echo $trace_dir, $num_gpus
-	./preprocess_traces.sh $trace_dir $num_gpus
+	if [[ ! $trace_expname == *"ta"* ]]; then
+		echo "Start preprocessing $trace_dir..."
+		./preprocess_traces.sh $trace_dir $num_gpus
+	fi
+	
 done
-
 
 
 # install the missing modules in the python used in bash (uncomment the next 2 lines if you are running the script for the first time)
 # pip install matplotlib
 # pip install IPython
 
-# cd ..
-# ${py} timeline.py data/$ta_traces_dir $exp_name
+# run plots generating script
+cd ..
+for ta_trace_dir in "data/$traces_dir"/ta_*; do
+	exp_name=$(echo $ta_trace_dir | awk -F "/" '{print $NF}' | awk -F "_" '{print $2"_"$3}')
+	echo $exp_name
+	echo $ta_trace_dir
+	${py} timeline.py $ta_trace_dir $exp_name
+done
