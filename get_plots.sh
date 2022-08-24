@@ -4,8 +4,6 @@
 cd data
 traces_dir=$(echo $1 | awk -F "/" '{print $2}') # name of the dir contains all raw trace results (no need to add data/ in front)
 ta_traces_dir="ta_${traces_dir}"
-# num_gpus=$2 # number of gpus used in the current experiment
-# exp_name=$3 # the name you want for the experiment plots dir
 py=python3
 
 
@@ -20,10 +18,14 @@ fi
 # preprocessing traces
 for trace_dir in "$traces_dir"/*; do
 	trace_expname=$(basename $trace_dir)
-	num_gpus=${trace_expname:0:1}
-	if [[ ! $trace_expname == *"ta"* ]]; then
-		echo "Start preprocessing $trace_dir..."
-		./preprocess_traces.sh $trace_dir $num_gpus
+	trace_expdir=$(dirname $trace_dir)
+	if ! [[ $trace_expname == "ta"* ]]; then
+		num_gpus=${trace_expname:0:1}
+		trace_tadir="${trace_expdir}/ta_${trace_expname}"
+		if [ ! -d "$trace_tadir" ]; then
+			echo "Start preprocessing $trace_dir..."
+			./preprocess_traces.sh $trace_dir $num_gpus
+		fi
 	fi
 	
 done
