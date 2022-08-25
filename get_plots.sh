@@ -15,6 +15,9 @@ then
 fi
 
 
+# remove previously preprocessed data
+sudo rm -rf ${traces_dir}/ta*
+
 # preprocessing traces
 for trace_dir in "$traces_dir"/*; do
 	trace_expname=$(basename $trace_dir)
@@ -22,10 +25,11 @@ for trace_dir in "$traces_dir"/*; do
 	if ! [[ $trace_expname == "ta"* ]]; then
 		num_gpus=${trace_expname:0:1}
 		trace_tadir="${trace_expdir}/ta_${trace_expname}"
-		if [ ! -d "$trace_tadir" ]; then
-			echo "Start preprocessing $trace_dir..."
-			./preprocess_traces.sh $trace_dir $num_gpus
-		fi
+		echo "Start preprocessing $trace_dir..."
+		./preprocess_traces.sh $trace_dir $num_gpus
+		# if [ ! -d "$trace_tadir" ]; then
+			
+		# fi
 	fi
 	
 done

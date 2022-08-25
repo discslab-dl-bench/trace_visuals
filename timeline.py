@@ -362,6 +362,7 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid trace directory")
         exit(-1) 
 
+    # plot a overview png
     plot_pids_timeline_cpu_gpu(
         args.data_dir,
         title=args.experiment_name,
@@ -371,6 +372,7 @@ if __name__ == "__main__":
     # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
     interesting_time_ranges = get_plotting_ranges(args.data_dir)
 
+    # plotting detail plots
     for name, time_range in interesting_time_ranges.items():
 
         start = time_range[0]
