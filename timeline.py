@@ -85,8 +85,9 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     # Plot GPU
     #
     df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
+    # embed()
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-
+    
     if start is not None:
         df = df[df["timestamp"] >= np.datetime64(start)]
     if end is not None:
