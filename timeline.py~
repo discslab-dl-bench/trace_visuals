@@ -147,7 +147,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         df = df[["start_date", "end_date", "event"]]
         df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
         print(df.start_date)
-        print("Did a thing")
         df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
 
         if start is not None:
