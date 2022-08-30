@@ -20,6 +20,7 @@ data/writes/
 notes/
 ckpt_*
 unique_pids
+*~
 
 # Include the example trace data
 !data/4gpu_test_data.tar.gz

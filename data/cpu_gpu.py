@@ -103,7 +103,7 @@ def process_cpu_data(cpu_trace, current_date):
 
     for line in infile:
         # Remove duplicate spaces, and split
-        cols = " ".join(line.replace("all", "").replace("AM", "").replace("PM", "").split()).split(" ")
+        cols = " ".join(line.replace("all", "").split()).split(" ")
 
         # Don't process the last line
         if cols[0] == "Average:":
