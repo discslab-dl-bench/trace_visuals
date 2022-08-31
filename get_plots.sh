@@ -42,7 +42,7 @@ done
 # run plots generating script
 cd ..
 for ta_trace_dir in "data/$traces_dir"/ta_*; do
-	exp_name=$(echo $ta_trace_dir | awk -F "/" '{print $NF}' | awk -F "_" '{print $2"_"$3}')
+	exp_name=$(echo $ta_trace_dir | awk -F "/" '{print $NF}' | awk -F "_" '{print $2"_"$3"_"$4}')
 	echo $exp_name
 	echo $ta_trace_dir
 	${py} timeline.py $ta_trace_dir $exp_name
