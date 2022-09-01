@@ -63,7 +63,7 @@ echo -e "cpu.sh, gpu.sh, cpu_gpu.py: Preparing CPU and GPU traces for plotting"
 echo -e "#####################################################################"
 # Process the CPU and GPU traces
 ./cpu.sh $traces_dir/cpu.out $ta_outdir
-./gpu.sh $traces_dir/gpu.out $ta_outdir 
+./gpu.sh $traces_dir/gpu.out $ta_outdir $num_gpus 
 ${py} cpu_gpu.py $ta_outdir/gpu_data/gpu.all $ta_outdir/cpu_data/cpu.all $num_gpus
 
 echo -e "####################################################################"
