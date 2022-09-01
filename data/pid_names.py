@@ -10,7 +10,17 @@ def get_fields(line):
 
 def main(data_dir, output_dir):
 
+    pids_trace = os.path.join(data_dir, "pids_tids.out")
+
+    if not os.path.isfile(pids_trace):
+        print(f"pids_tids.out not found. Looking for pids.out")
+
     pids_trace = os.path.join(data_dir, "pids.out")
+
+    if not os.path.isfile(pids_trace):
+        print(f"pids.out not found! Failed.")
+        exit()
+        
     pids_trace = open(pids_trace, 'r')
 
     pid_names = {}
