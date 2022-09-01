@@ -1,0 +1,115 @@
+2022-08-30T19:58:56.440373263 4013179 9600 /opt/conda/bin/../lib/tls/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440408486 4013179 2622 /opt/conda/bin/../lib/tls/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440424104 4013179 2501 /opt/conda/bin/../lib/tls/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440433768 4013179 2423 /opt/conda/bin/../lib/tls/libpthread.so.0 
+2022-08-30T19:58:56.440443877 4013179 3232 /opt/conda/bin/../lib/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440453014 4013179 2466 /opt/conda/bin/../lib/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440462452 4013179 2760 /opt/conda/bin/../lib/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440473507 4013179 2872 /opt/conda/bin/../lib/libpthread.so.0 
+2022-08-30T19:58:56.440490219 4013179 4366 /usr/local/nvidia/lib/tls/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440513256 4013179 2286 /usr/local/nvidia/lib/tls/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440523449 4013179 2259 /usr/local/nvidia/lib/tls/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440533545 4013179 2152 /usr/local/nvidia/lib/tls/libpthread.so.0 
+2022-08-30T19:58:56.440543957 4013179 2331 /usr/local/nvidia/lib/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440554705 4013179 2215 /usr/local/nvidia/lib/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440564846 4013179 2182 /usr/local/nvidia/lib/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440574710 4013179 2114 /usr/local/nvidia/lib/libpthread.so.0 
+2022-08-30T19:58:56.440584722 4013179 2385 /usr/local/nvidia/lib64/tls/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440595040 4013179 2198 /usr/local/nvidia/lib64/tls/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440604887 4013179 2153 /usr/local/nvidia/lib64/tls/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440615088 4013179 2090 /usr/local/nvidia/lib64/tls/libpthread.so.0 
+2022-08-30T19:58:56.440624989 4013179 2148 /usr/local/nvidia/lib64/haswell/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440634790 4013179 2142 /usr/local/nvidia/lib64/haswell/libpthread.so.0 
+2022-08-30T19:58:56.440644817 4013179 2111 /usr/local/nvidia/lib64/x86_64/libpthread.so.0 
+2022-08-30T19:58:56.440655242 4013179 1944 /usr/local/nvidia/lib64/libpthread.so.0 
+2022-08-30T19:58:56.440670792 4013179 6824 /etc/ld.so.cache ld.so.cache
+2022-08-30T19:58:56.440728864 4013179 23790 /lib/x86_64-linux-gnu/libpthread.so.0 libpthread-2.27.so
+2022-08-30T19:58:56.440847429 4013179 6500 /opt/conda/bin/../lib/libc.so.6 
+2022-08-30T19:58:56.440866908 4013179 7422 /lib/x86_64-linux-gnu/libc.so.6 libc-2.27.so
+2022-08-30T19:58:56.440934544 4013179 4247 /opt/conda/bin/../lib/libdl.so.2 
+2022-08-30T19:58:56.440952546 4013179 7144 /lib/x86_64-linux-gnu/libdl.so.2 libdl-2.27.so
+2022-08-30T19:58:56.441007003 4013179 3751 /opt/conda/bin/../lib/libutil.so.1 
+2022-08-30T19:58:56.441025202 4013179 7551 /lib/x86_64-linux-gnu/libutil.so.1 libutil-2.27.so
+2022-08-30T19:58:56.441081152 4013179 3672 /opt/conda/bin/../lib/librt.so.1 
+2022-08-30T19:58:56.441118621 4013179 7084 /lib/x86_64-linux-gnu/librt.so.1 librt-2.27.so
+2022-08-30T19:58:56.441189946 4013179 3545 /opt/conda/bin/../lib/libm.so.6 
+2022-08-30T19:58:56.441207742 4013179 7269 /lib/x86_64-linux-gnu/libm.so.6 libm-2.27.so
+2022-08-30T19:58:56.442105503 4013179 7409 /usr/lib/locale/locale-archive 
+2022-08-30T19:58:56.442141194 4013179 4314 /usr/share/locale/locale.alias 
+2022-08-30T19:58:56.442158390 4013179 7101 /usr/lib/locale/C.UTF-8/LC_CTYPE LC_CTYPE
+2022-08-30T19:58:56.442197013 4013179 7674 /usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache gconv-modules.cache
+2022-08-30T19:58:56.442335338 4013179 3609 /opt/conda/bin/pyvenv.cfg 
+2022-08-30T19:58:56.442344963 4013179 2241 /opt/conda/pyvenv.cfg 
+2022-08-30T19:58:56.442423644 4013179 9976 /dev/urandom urandom
+2022-08-30T19:58:56.446058966 4013179 6295 /etc/localtime 
+2022-08-30T19:58:56.446365631 4013179 7379 /opt/conda/lib/python3.8 python3.8
+2022-08-30T19:58:56.446881485 4013179 13609 /opt/conda/lib/python3.8/encodings/__pycache__/__init__.cpython __init__.cpython-38.pyc
+2022-08-30T19:58:56.447181991 4013179 10264 /opt/conda/lib/python3.8/__pycache__/codecs.cpython-38.pyc codecs.cpython-38.pyc
+2022-08-30T19:58:56.447907849 4013179 6649 /opt/conda/lib/python3.8/encodings encodings
+2022-08-30T19:58:56.448158554 4013179 8863 /opt/conda/lib/python3.8/encodings/__pycache__/aliases.cpython- aliases.cpython-38.pyc
+2022-08-30T19:58:56.448669732 4013179 9302 /opt/conda/lib/python3.8/encodings/__pycache__/utf_8.cpython-38 utf_8.cpython-38.pyc
+2022-08-30T19:58:56.449407122 4013179 9432 /opt/conda/lib/python3.8/encodings/__pycache__/latin_1.cpython- latin_1.cpython-38.pyc
+2022-08-30T19:58:56.449847070 4013179 9108 /opt/conda/lib/python3.8/__pycache__/io.cpython-38.pyc io.cpython-38.pyc
+2022-08-30T19:58:56.450115230 4013179 9086 /opt/conda/lib/python3.8/__pycache__/abc.cpython-38.pyc abc.cpython-38.pyc
+2022-08-30T19:58:56.450960894 4013179 9609 /opt/conda/lib/python3.8/__pycache__/site.cpython-38.pyc site.cpython-38.pyc
+2022-08-30T19:58:56.451267774 4013179 8917 /opt/conda/lib/python3.8/__pycache__/os.cpython-38.pyc os.cpython-38.pyc
+2022-08-30T19:58:56.451783023 4013179 9210 /opt/conda/lib/python3.8/__pycache__/stat.cpython-38.pyc stat.cpython-38.pyc
+2022-08-30T19:58:56.452302707 4013179 9375 /opt/conda/lib/python3.8/__pycache__/_collections_abc.cpython-3 _collections_abc.cpython-38.pyc
+2022-08-30T19:58:56.453663707 4013179 9649 /opt/conda/lib/python3.8/__pycache__/posixpath.cpython-38.pyc posixpath.cpython-38.pyc
+2022-08-30T19:58:56.453982903 4013179 9137 /opt/conda/lib/python3.8/__pycache__/genericpath.cpython-38.pyc genericpath.cpython-38.pyc
+2022-08-30T19:58:56.454601330 4013179 10591 /opt/conda/lib/python3.8/__pycache__/_sitebuiltins.cpython-38.p _sitebuiltins.cpython-38.pyc
+2022-08-30T19:58:56.454987688 4013179 7266 /opt/conda/lib/python3.8/site-packages site-packages
+2022-08-30T19:58:56.455247311 4013179 9506 /opt/conda/lib/python3.8/site-packages/distutils-precedence.pth distutils-precedence.pth
+2022-08-30T19:58:56.455439965 4013179 25179 /opt/conda/lib/python3.8/__pycache__/_bootlocale.cpython-38.pyc _bootlocale.cpython-38.pyc
+2022-08-30T19:58:56.456204971 4013179 7106 /opt/conda/lib/python3.8/lib-dynload lib-dynload
+2022-08-30T19:58:56.456414588 4013179 5683 /opt/conda/lib/python3.8/site-packages site-packages
+2022-08-30T19:58:56.456801824 4013179 8523 /opt/conda/lib/python3.8/site-packages/torch/distributed/launch launch.py
+2022-08-30T19:58:56.457208419 4013179 7818 /opt/conda/lib/python3.8/site-packages/torch/distributed/launch launch.py
+2022-08-30T19:58:56.458344205 4013179 7858 /opt/conda/lib/python3.8/site-packages/torch/distributed distributed
+2022-08-30T19:58:56.458534315 4013179 9774 /opt/conda/lib/python3.8/__pycache__/subprocess.cpython-38.pyc subprocess.cpython-38.pyc
+2022-08-30T19:58:56.459161601 4013179 9124 /opt/conda/lib/python3.8/__pycache__/signal.cpython-38.pyc signal.cpython-38.pyc
+2022-08-30T19:58:56.459400736 4013179 9205 /opt/conda/lib/python3.8/__pycache__/functools.cpython-38.pyc functools.cpython-38.pyc
+2022-08-30T19:58:56.459909406 4013179 10218 /opt/conda/lib/python3.8/collections/__pycache__/__init__.cpyth __init__.cpython-38.pyc
+2022-08-30T19:58:56.460497493 4013179 9357 /opt/conda/lib/python3.8/__pycache__/operator.cpython-38.pyc operator.cpython-38.pyc
+2022-08-30T19:58:56.461049901 4013179 12244 /opt/conda/lib/python3.8/__pycache__/keyword.cpython-38.pyc keyword.cpython-38.pyc
+2022-08-30T19:58:56.461334805 4013179 8863 /opt/conda/lib/python3.8/__pycache__/heapq.cpython-38.pyc heapq.cpython-38.pyc
+2022-08-30T19:58:56.461595919 4013179 9095 /opt/conda/lib/python3.8/lib-dynload/_heapq.cpython-38-x86_64-l _heapq.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.462000218 4013179 8922 /opt/conda/lib/python3.8/__pycache__/reprlib.cpython-38.pyc reprlib.cpython-38.pyc
+2022-08-30T19:58:56.463842421 4013179 9974 /opt/conda/lib/python3.8/__pycache__/enum.cpython-38.pyc enum.cpython-38.pyc
+2022-08-30T19:58:56.464261423 4013179 8873 /opt/conda/lib/python3.8/__pycache__/types.cpython-38.pyc types.cpython-38.pyc
+2022-08-30T19:58:56.466278849 4013179 10541 /opt/conda/lib/python3.8/__pycache__/threading.cpython-38.pyc threading.cpython-38.pyc
+2022-08-30T19:58:56.466857111 4013179 9523 /opt/conda/lib/python3.8/__pycache__/_weakrefset.cpython-38.pyc _weakrefset.cpython-38.pyc
+2022-08-30T19:58:56.467516688 4013179 9549 /opt/conda/lib/python3.8/__pycache__/warnings.cpython-38.pyc warnings.cpython-38.pyc
+2022-08-30T19:58:56.468051821 4013179 8932 /opt/conda/lib/python3.8/__pycache__/contextlib.cpython-38.pyc contextlib.cpython-38.pyc
+2022-08-30T19:58:56.468971717 4013179 9544 /opt/conda/lib/python3.8/lib-dynload/_posixsubprocess.cpython-3 _posixsubprocess.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.469238523 4013179 9041 /opt/conda/lib/python3.8/lib-dynload/select.cpython-38-x86_64-l select.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.469554544 4013179 9378 /opt/conda/lib/python3.8/__pycache__/selectors.cpython-38.pyc selectors.cpython-38.pyc
+2022-08-30T19:58:56.469865100 4013179 6961 /opt/conda/lib/python3.8/collections collections
+2022-08-30T19:58:56.470049451 4013179 25155 /opt/conda/lib/python3.8/collections/__pycache__/abc.cpython-38 abc.cpython-38.pyc
+2022-08-30T19:58:56.470269799 4013179 8506 /opt/conda/lib/python3.8/lib-dynload/math.cpython-38-x86_64-lin math.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.471196837 4013179 23862 /opt/conda/lib/python3.8/__pycache__/argparse.cpython-38.pyc argparse.cpython-38.pyc
+2022-08-30T19:58:56.472485047 4013179 9916 /opt/conda/lib/python3.8/__pycache__/re.cpython-38.pyc re.cpython-38.pyc
+2022-08-30T19:58:56.472831459 4013179 8652 /opt/conda/lib/python3.8/__pycache__/sre_compile.cpython-38.pyc sre_compile.cpython-38.pyc
+2022-08-30T19:58:56.473247914 4013179 9096 /opt/conda/lib/python3.8/__pycache__/sre_parse.cpython-38.pyc sre_parse.cpython-38.pyc
+2022-08-30T19:58:56.473687573 4013179 9027 /opt/conda/lib/python3.8/__pycache__/sre_constants.cpython-38.p sre_constants.cpython-38.pyc
+2022-08-30T19:58:56.474912623 4013179 10109 /opt/conda/lib/python3.8/__pycache__/copyreg.cpython-38.pyc copyreg.cpython-38.pyc
+2022-08-30T19:58:56.475259569 4013179 9022 /opt/conda/lib/python3.8/__pycache__/shutil.cpython-38.pyc shutil.cpython-38.pyc
+2022-08-30T19:58:56.475760191 4013179 8643 /opt/conda/lib/python3.8/__pycache__/fnmatch.cpython-38.pyc fnmatch.cpython-38.pyc
+2022-08-30T19:58:56.476059560 4013179 9063 /opt/conda/lib/python3.8/lib-dynload/zlib.cpython-38-x86_64-lin zlib.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.476136612 4013179 4853 /opt/conda/lib/python3.8/lib-dynload/../../tls/haswell/x86_64/l 
+2022-08-30T19:58:56.476149605 4013179 2920 /opt/conda/lib/python3.8/lib-dynload/../../tls/haswell/libz.so. 
+2022-08-30T19:58:56.476161459 4013179 2927 /opt/conda/lib/python3.8/lib-dynload/../../tls/x86_64/libz.so.1 
+2022-08-30T19:58:56.476173019 4013179 2820 /opt/conda/lib/python3.8/lib-dynload/../../tls/libz.so.1 
+2022-08-30T19:58:56.476185079 4013179 3129 /opt/conda/lib/python3.8/lib-dynload/../../haswell/x86_64/libz. 
+2022-08-30T19:58:56.476196870 4013179 2883 /opt/conda/lib/python3.8/lib-dynload/../../haswell/libz.so.1 
+2022-08-30T19:58:56.476208658 4013179 2918 /opt/conda/lib/python3.8/lib-dynload/../../x86_64/libz.so.1 
+2022-08-30T19:58:56.476226829 4013179 8880 /opt/conda/lib/python3.8/lib-dynload/../../libz.so.1 libz.so.1.2.11
+2022-08-30T19:58:56.476584536 4013179 8985 /opt/conda/lib/python3.8/__pycache__/bz2.cpython-38.pyc bz2.cpython-38.pyc
+2022-08-30T19:58:56.476974364 4013179 9363 /opt/conda/lib/python3.8/__pycache__/_compression.cpython-38.py _compression.cpython-38.pyc
+2022-08-30T19:58:56.477361608 4013179 25182 /opt/conda/lib/python3.8/lib-dynload/_bz2.cpython-38-x86_64-lin _bz2.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.477803809 4013179 9228 /opt/conda/lib/python3.8/__pycache__/lzma.cpython-38.pyc lzma.cpython-38.pyc
+2022-08-30T19:58:56.478130881 4013179 11777 /opt/conda/lib/python3.8/lib-dynload/_lzma.cpython-38-x86_64-li _lzma.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.478207053 4013179 9945 /opt/conda/lib/python3.8/lib-dynload/../../liblzma.so.5 liblzma.so.5.2.5
+2022-08-30T19:58:56.478810467 4013179 9249 /opt/conda/lib/python3.8/lib-dynload/grp.cpython-38-x86_64-linu grp.cpython-38-x86_64-linux-gnu.so
+2022-08-30T19:58:56.479429900 4013179 19452 /opt/conda/lib/python3.8/__pycache__/gettext.cpython-38.pyc gettext.cpython-38.pyc
+2022-08-30T19:58:56.480101553 4013179 8614 /opt/conda/lib/python3.8/__pycache__/locale.cpython-38.pyc locale.cpython-38.pyc

@@ -109,16 +109,24 @@ def process_cpu_data(cpu_trace, current_date):
         if cols[0] == "Average:":
             break
 
-        # increment the date by one if we traced past midnight
-        if not date_changed and cols[0] == "00:00:00":
+        # increment the date by one if we traced past midnight (12AM in the morning)
+        if not date_changed and cols[0] == "12:00:00" and cols[1] == "AM":
             current_date += 1
             date_changed = True
 
-         # Make UTC timestamp from time and current date (if it's PM, then we add 12 additional hrs, 12 + 5 = 17)
+        # change 12:xx:xx AM to 00:xx:xx AM so that adding 5 hour to that will not cause trouble
+        time_tokens = cols[0].split(":")
+        hour = time_tokens[0]
+        if hour == "12" and cols[1] == "AM":
+            new_time_tokens = ["00", time_tokens[1], time_tokens[2]]
+            cols[0] = ":".join(new_time_tokens)
+
+        # Make UTC timestamp from time and current date (if it's PM, then we add 12 additional hrs, 12 + 5 = 17)
         if cols[1] == "PM":
             cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(17, "h"))
         else:
             cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(5, "h"))
+                
         # remove the extra "PM"  or "AM" col in here
         remove = cols[1]
         cols.remove(remove)
