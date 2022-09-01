@@ -136,7 +136,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax2.legend(loc="center right")
 
 
-    #
     # Plot PIDs
     #
     for i, pid in enumerate(pids):
@@ -157,6 +156,11 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
             df = df[df["start_date"] >= np.datetime64(start)]
         if end is not None:
             df = df[df["end_date"] <= np.datetime64(end)]
+
+        # If the DataFrame is empty after filtering, skip
+        if len(df) == 0:
+            print(f"This timerange is empty for pid {pid}. Skipping.")
+            continue
 
         # Can't define this earlier
         masks = {
@@ -209,11 +213,17 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     if margin is None:
         margin = np.timedelta64(5, "s")
 
-    ax.set_xlim(
-        df.start_date.min() - margin,
-        df.end_date.max() + margin,
-    )
-
+    # Sometimes the range we try to plot contains nothing so the limits are NaT
+    # and the program throws a value error "Axis limits cannot be NaN or Inf"
+    try:
+        ax.set_xlim(
+            df.start_date.min() - margin,
+            df.end_date.max() + margin,
+        )
+    except Exception as e:
+        print(f"Exception caught while trying to set graph limits: {e}")
+        print("Skipping this graph.")
+        return
     #
     # Plot the timeline
     #

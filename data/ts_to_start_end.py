@@ -11,7 +11,7 @@ def main(filename, outdir):
     infile = open(filename, "r")
     outfile = open(f"{outdir}/st_end_data_{pid}", "w")
 
-    for line in infile:
+    for i, line in enumerate(infile):
         try:
             cols = line.split(",")
             ts_end = np.datetime64(cols[0])
@@ -19,7 +19,7 @@ def main(filename, outdir):
             ts_start = ts_end - lat
             outfile.write(f"{ts_start},{ts_end},{cols[1]}\n")
         except Exception as e:
-            print(e)
+            print(f"\t{filename} line {i}: {e}. Continuing.")
             continue
 
 
