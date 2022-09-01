@@ -4,8 +4,19 @@ import pathlib
 import numpy as np
 import argparse
 
+# We are in eastern time, so UTC-4
+UTC_TIME_DELTA = 4
+
 # Add any new trace we want to time align here
-TRACES = ["openat", "close", "read", "write", "create_del", "bio"]
+# We don't care about close, create_del for plotting (for now)
+TRACES = ["bio", "openat", "read", "write"]
+
+TRACES_AND_EXPECTED_NUM_COLUMNS = {
+    "bio": 9,
+    "openat": [5,6],    # Both 5 and 6 are valid
+    "read": 6,
+    "write": 9 
+}
 
 """
 This function reads the time align trace and looks at every seconds transition
@@ -77,11 +88,11 @@ def get_ref_ts(timealign_trace, gpu_trace):
             break
 
     # Gpu trace localdate is in YYYYMMDD, break it into YYYY-MM-DD
-    utc_str = f"{localdate[0:4]}-{localdate[4:6]}-{localdate[6:]}T{ref_lt}.000000000"
-    ref_UTC = np.datetime64(utc_str)
-    print(f"Alignment DONE: {ref_ts} corresponds to {ref_UTC}\n")
+    local_time_str = f"{localdate[0:4]}-{localdate[4:6]}-{localdate[6:]}T{ref_lt}.000000000"
+    ref_local_time = np.datetime64(local_time_str)
+    print(f"Alignment DONE: {ref_ts} corresponds to {ref_local_time}\n")
 
-    return ref_ts, ref_UTC
+    return ref_ts, ref_local_time
 
 # Read a line and revert the file pointer 
 def peek_line(f):
@@ -98,32 +109,52 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
 
     print("Aligning all traces:")
 
-    # Add 5 hours to convert to UTC (we are in Montreal time)
-    ref_t = ref_t + np.timedelta64(5, "h")
+    ref_t = ref_t + np.timedelta64(UTC_TIME_DELTA, "h")
 
     for trace in TRACES:
 
         print(f"\tProcessing {trace}")
 
-        tracefile = open(os.path.join(traces_dir, "trace_" + trace + ".out"), "r")
+        expected_num_cols = TRACES_AND_EXPECTED_NUM_COLUMNS[trace]
+
+        filename = "trace_" + trace + ".out"
+        tracefile = open(os.path.join(traces_dir, filename), "r")
         outfile = open(os.path.join(output_dir, trace + "_time_aligned.out"), "w")
 
         # The traces have some lines at the start where we print out columns or other info
         # We want to skip those as they don't contain useful information
         regex_start_w_number = re.compile(r'^[0-9].*')
-
-        while True:
-            line = peek_line(tracefile)
-            if re.match(regex_start_w_number, line) is None:
-                tracefile.readline()
-            else:
-                break
         
-        try:
-            for line in tracefile:
+        for i, line in enumerate(tracefile):
+            try:
                 cols = " ".join(line.split()).split(" ")
                 # Handle empty lines
                 if cols[0] == "":
+                    print(f"\t\t{filename} line {i} is empty. Continuing.")
+                    continue
+
+                # Handle lines that don't have the expected number of columns
+                # This can occur for various reasons, often interleaving lines
+                # We can have multiple acceptable number of columns as well
+                if type(expected_num_cols) is list:
+                    got_expected = False
+                    for num_cols in expected_num_cols:
+                        if len(cols) == num_cols:
+                            got_expected = True
+                            break
+
+                    if not got_expected:
+                        print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
+                        continue
+                else:
+                    if len(cols) != expected_num_cols:
+                        print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
+                        continue 
+
+                # Handle lines that don't start with a number - they should be catched by the expected
+                # Number of columns check most of the time but one could slip by.
+                if re.match(regex_start_w_number, line) is None:
+                    print(f"\t\t{filename} line {i} does not start with a number. Continuing.")
                     continue
                 # Get the timestamp
                 ts = int(cols[0])
@@ -132,10 +163,11 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                 # Get the UTC time
                 t = ref_t + ts_delta
                 outfile.write(np.datetime_as_string(t) + " " + " ".join(cols[1::]) + "\n")
-        except Exception as e:
-            print(f"\tError while processing trace_{trace}! Continuing.")
-            print(e)
-            continue
+
+            except Exception as e:
+                print(f"\t\tError while processing trace_{trace}! Continuing.")
+                print(e)
+                continue
 
 
 if __name__ == "__main__":
@@ -167,7 +199,7 @@ if __name__ == "__main__":
         print(f"ERROR: Could not find gpu.out in {args.traces_dir}")
         exit(-1) 
 
-    ref_ts, ref_UTC = get_ref_ts(time_align_trace, gpu_trace)
-    align_all_traces(args.traces_dir, args.output_dir, ref_ts, ref_UTC)
+    ref_ts, ref_local_time = get_ref_ts(time_align_trace, gpu_trace)
+    align_all_traces(args.traces_dir, args.output_dir, ref_ts, ref_local_time)
 
     print("All done\n")

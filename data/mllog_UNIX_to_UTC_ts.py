@@ -3,6 +3,7 @@ import json
 import argparse
 import numpy as np
 
+
 def process_timeline(datadir):
     """
     Convert the UNIX timestamps of the mllog to UTC timestamp
@@ -17,7 +18,8 @@ def process_timeline(datadir):
 
     for i, log in enumerate(all_logs):
 
-        ux_time = np.datetime64(log["time_ms"], "ms") + np.timedelta64(5, "h")
+        # UNIX timestamps are in milliseconds and already in UTC
+        ux_time = np.datetime64(log["time_ms"], "ms")
 
         key_parts = log["key"].split("_")
 

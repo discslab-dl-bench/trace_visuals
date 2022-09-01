@@ -2,6 +2,8 @@
 __pycache__/
 plots/
 
+data/8gpu_*
+data/8gpus_*
 data/4gpu_*
 data/4gpus_*
 data/2gpu_*

@@ -2,8 +2,11 @@ import os
 import argparse
 import numpy as np
 from statistics import mean
+from datetime import datetime
 from itertools import zip_longest as izip_longest
 
+# We are in eastern time, so UTC-4
+UTC_TIME_DELTA = 4
 
 def sliding_window(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
@@ -21,9 +24,13 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
     headers = ["timestamp", "sm", "mem", "fb"]
     outcsv.write(",".join(headers) + "\n")
 
+    line_no = 0
+
     # Read the file num_gpus lines at a time. 
     # Compute the average for all columns and write out
     for line_batch in sliding_window(infile, num_gpus):
+
+        line_no += 8
 
         # Hold column values we care about
         wcols = []
@@ -31,20 +38,21 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
         mem = []
         fb = []
 
-        for line in line_batch:
+        for i, line in enumerate(line_batch):
             try:
                 cols = " ".join(line.split()).replace("-", "0").split(" ")
                 if cols[2] == "0":
                     # Combine cols 0 and 1 into a UTC timestamp
                     date = cols[0]
                     ts = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{cols[1]}"
-                    ts = str(np.datetime64(ts) + np.timedelta64(5, "h"))
+                    ts = str(np.datetime64(ts) + np.timedelta64(UTC_TIME_DELTA, "h"))
                     wcols.append(ts)
                 # Extract values
                 sm.append(int(cols[5]))
                 mem.append(int(cols[6]))
                 fb.append(int(cols[9]))
             except Exception as e:
+                print(f"aruond line {line_no + i}")
                 print(e)
                 print(line)
 
@@ -71,6 +79,24 @@ def get_date(gpu_trace):
             date = cols[0]
             date = f"{date[0:4]}-{date[4:6]}-{date[6:8]}"
             return np.datetime64(date)
+
+
+def split_cpu_trace_line_cols(line):
+    # Remove duplicate spaces, and split
+    cols = " ".join(line.replace("all", "").split()).split(" ")
+
+    # Depending on the time config of the machine, mpstat
+    # may output an AM/PM timestamp or a 24h timestamp.
+    # Always return 24h timestamp in col[0] and remove the AM/PM column.
+    if cols[1] == "AM" or cols[1] == "PM":
+        timestamp = f"{cols[0]} {cols[1]}"
+        # This converts an AM/PM timestamp to 24h
+        time_AM_PM = datetime.strptime(timestamp, "%I:%M:%S %p")
+        time_24h = datetime.strftime(time_AM_PM, "%H:%M:%S")
+        cols[0] = time_24h
+        cols.remove(cols[1]) # Delete the AM/PM column
+
+    return cols
 
 
 def process_cpu_data(cpu_trace, current_date):
@@ -103,19 +129,22 @@ def process_cpu_data(cpu_trace, current_date):
 
     for line in infile:
         # Remove duplicate spaces, and split
-        cols = " ".join(line.replace("all", "").split()).split(" ")
+        cols = split_cpu_trace_line_cols(line)
 
         # Don't process the last line
         if cols[0] == "Average:":
             break
 
-        # increment the date by one if we traced past midnight
+        # Increment the date by one if we traced past midnight
+        # This check assumes we have a line for each second
         if not date_changed and cols[0] == "00:00:00":
             current_date += 1
             date_changed = True
 
         # Make UTC timestamp from time and current date
-        cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(5, "h"))
+        cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(UTC_TIME_DELTA, "h"))
+
+        # Join the columns with commas and write to the CSV file
         outcsv.write(",".join(cols) + "\n")
 
     infile.close()
@@ -137,7 +166,10 @@ if __name__ == "__main__":
         print(f"Invalid CPU trace file given")
         exit(-1) 
 
+    print("Calculating average GPU usage")
     calc_avg_gpu_usage(args.gpu_trace, args.num_gpus)
+
+    print("Processing CPU data")
     current_date = get_date(args.gpu_trace)
     process_cpu_data(args.cpu_trace, current_date)
 
