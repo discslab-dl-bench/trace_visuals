@@ -38,15 +38,17 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
         mem = []
         fb = []
 
+        first_rank0 = False # flag sets to true if we encountered rank 0 at least once and only once
         for i, line in enumerate(line_batch):
             try:
                 cols = " ".join(line.split()).replace("-", "0").split(" ")
-                if cols[2] == "0":
+                if cols[2] == "0" and not first_rank0:
                     # Combine cols 0 and 1 into a UTC timestamp for every $num_gpus (ex: 8, 4, ...) lines
                     date = cols[0]
                     ts = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{cols[1]}"
                     ts = str(np.datetime64(ts) + np.timedelta64(UTC_TIME_DELTA, "h"))
                     wcols.append(ts)
+                    first_rank0 = True
                 # Extract values
                 sm.append(int(cols[5]))
                 mem.append(int(cols[6]))
@@ -61,7 +63,9 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
         wcols.append(str(mean(mem)))
         wcols.append(str(mean(fb)))
 
-        outcsv.write(",".join(wcols) + "\n")
+        # only write to csv if saw rank 0 at least once and only once
+        if first_rank0:
+            outcsv.write(",".join(wcols) + "\n")
 
     infile.close()
     outcsv.close()
