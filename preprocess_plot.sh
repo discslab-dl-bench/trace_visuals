@@ -2,6 +2,7 @@
 
 
 preprocess(){
+	cd data
 	# remove previously preprocessed data
 	sudo rm -rf ${traces_dir}/ta*
 	# preprocessing traces
@@ -21,21 +22,19 @@ preprocess(){
 
 plotting(){
 	# run plots generating script
-	cd ..
+	# echo $traces_dir
 	for ta_trace_dir in "data/$traces_dir"/ta_*; do
 		exp_name=$(echo $ta_trace_dir | awk -F "/" '{print $NF}' | awk -F "_" '{print $2"_"$3"_"$4}')
-		echo $exp_name
-		echo $ta_trace_dir
+		# echo $exp_name
+		# echo $ta_trace_dir
 		${py} timeline.py $ta_trace_dir $exp_name
 	done	
 }
 
 main(){
-	cd data
 	traces_dir=$(echo $1 | awk -F "/" '{print $2}') # name of the dir contains all raw trace results (no need to add data/ in front)
 	ta_traces_dir="ta_${traces_dir}"
 	py=python3
-
 
 	if [ $# -lt 1 ]
 	then
@@ -54,12 +53,13 @@ main(){
 	if [[ "$mode" == "all" ]]
 	then
 		preprocess
+		cd ..
 		plotting
 	elif [[ "$mode" == "plot" ]]
 	then
 		plotting
 	
-	elif [[ "$mode" == "pre" ]] # pre stands for preprocess
+	elif [[ "$mode" == "prep" ]] # pre stands for preprocess
 	then
 		preprocess
 	fi
