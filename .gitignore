@@ -24,6 +24,6 @@ ckpt_*
 unique_pids
 data/scaled_traces_results
 data/results_collection
-
+data/200GB_dataset
 # Include the example trace data
 !data/4gpu_test_data.tar.gz
