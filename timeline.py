@@ -84,7 +84,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     #
     # Plot GPU
     #
-    df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines="skip") # add additional argument on_bad_lines='skip' to plot
+    df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",")
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     if start is not None:
@@ -145,8 +145,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         )
         df = df[["start_date", "end_date", "event"]]
         df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
-        print(df.start_date)
-        print("Did a thing")
         df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
 
         if start is not None:
@@ -272,7 +270,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     categories = ["Timeline"]
 
     ymins = [0]
-    colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid")
+    colors_dict = dict(INIT="blue", BLOCK="gold", EVAL="darkorchid")
 
     # Select the last axes
     ax = axs[-1]
@@ -335,8 +333,8 @@ def get_plotting_ranges(data_dir):
     df = pd.read_csv(os.path.join(data_dir, "mllog_data/timeline.csv"), names=["start_date", "end_date", "event"])
 
     init = df.iloc[0]
-    first_epoch = df[df["event"] == "EPOCH"].iloc[0]
-    first_eval = df[df["event"] == "EVAL"].iloc[0]
+    first_epoch = df[df["event"] == "BLOCK"].iloc[0]
+    #first_eval = df[df["event"] == "EVAL"].iloc[0]
     last_event = df.iloc[-1]
 
     td_5s = np.timedelta64(5, 's')
@@ -348,11 +346,12 @@ def get_plotting_ranges(data_dir):
         "init": (np.datetime64(init.start_date), np.datetime64(init.end_date)),
         "first_30s": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_30s),
         "first_5min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_5min),
-        "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
-        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
+        "first_block": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
         "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
         "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
     }
+
+    #"first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
 
     # code.interact(local=locals())
 
