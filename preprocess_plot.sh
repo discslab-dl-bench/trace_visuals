@@ -11,10 +11,9 @@ preprocess(){
 		trace_expdir=$(dirname $trace_dir)
 		if ! [[ $trace_expname == "ta"* ]]; then
 			num_gpus=${trace_expname:0:1}
-			trace_tadir="${trace_expdir}/ta_${trace_expname}"
 			echo "Start preprocessing $trace_dir..."
+			echo $trace_dir
 			./preprocess_traces.sh $trace_dir $num_gpus
-
 		fi
 	done
 }
@@ -23,7 +22,7 @@ preprocess(){
 plotting(){
 	# run plots generating script
 	# echo $traces_dir
-	for ta_trace_dir in "data/$traces_dir"/ta_*; do
+	for ta_trace_dir in "$traces_dir"/ta_*; do
 		exp_name=$(echo $ta_trace_dir | awk -F "/" '{print $NF}' | awk -F "_" '{print $2"_"$3"_"$4}')
 		# echo $exp_name
 		# echo $ta_trace_dir
@@ -32,8 +31,10 @@ plotting(){
 }
 
 main(){
-	traces_dir=$(echo $1 | awk -F "/" '{print $2}') # name of the dir contains all raw trace results (no need to add data/ in front)
-	ta_traces_dir="ta_${traces_dir}"
+	# traces_dir=$(echo $1 | awk -F "/" '{print $2}') # name of the dir contains all raw trace results (no need to add data/ in front)
+	traces_dir=$1
+
+	# ta_traces_dir="ta_${traces_dir}"
 	py=python3
 
 	if [ $# -lt 1 ]
