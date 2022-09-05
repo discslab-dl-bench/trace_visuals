@@ -6,7 +6,7 @@ preprocess(){
 	# remove previously preprocessed data
 	sudo rm -rf ${traces_dir}/ta*
 	# preprocessing traces
-	for trace_dir in "$traces_dir"/*; do
+	for trace_dir in "$traces_dir"/[0-9]*; do
 		trace_expname=$(basename $trace_dir)
 		trace_expdir=$(dirname $trace_dir)
 		if ! [[ $trace_expname == "ta"* ]]; then
