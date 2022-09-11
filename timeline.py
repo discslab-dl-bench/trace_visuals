@@ -225,20 +225,20 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     print(f"Processing timeline")
 
 ####################################
-    # df = pd.read_csv(os.path.join(data_dir, "mllog_data/timeline.csv"), names=["start_date", "end_date", "event"])
+    df = pd.read_csv(os.path.join(data_dir, "mllog_data/timeline.csv"), names=["start_date", "end_date", "event"])
 
-    # df = df[["start_date", "end_date", "event"]]
-    # df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
-    # df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+    df = df[["start_date", "end_date", "event"]]
+    df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
+    df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
 
-    # if start is not None:
-    #     print(f"Filtering with start date >= {start}")
-    #     df = df[df["start_date"] >= np.datetime64(start)]
-    #     print(df.head())
-    # if end is not None:
-    #     print(f"Filtering with end date <= {end}")
-    #     df = df[df["end_date"] <= np.datetime64(end)]
-    #     print(df.head())
+    if start is not None:
+        print(f"Filtering with start date >= {start}")
+        df = df[df["start_date"] >= np.datetime64(start)]
+        print(df.head())
+    if end is not None:
+        print(f"Filtering with end date <= {end}")
+        df = df[df["end_date"] <= np.datetime64(end)]
+        print(df.head())
 
     # Add synthetic data to show timeline info when no data point is included in the desired range
     # Uncomment/modify according to needs
@@ -264,9 +264,10 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     #     print(df)
     #     print(df.shape)
     # else:
-    # if df.shape[0] == 0:
-    #     print("Pad with epoch")
-    #     df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
+
+    if df.shape[0] == 0:
+        print("Pad with epoch")
+        df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
 
     categories = ["Timeline"]
 
@@ -277,22 +278,22 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax = axs[-1]
 
     # Plot the events
-    # for i, _ in enumerate(categories):
-    #     start_dates = mdates.date2num(df.start_date)
-    #     end_dates = mdates.date2num(df.end_date)
-    #     durations = end_dates - start_dates
-    #     xranges = list(zip(start_dates, durations))
-    #     ymin = ymins[i] - 0.5
-    #     yrange = (ymin, bar_height)
-    #     colors = [colors_dict[event] for event in df.event]
-    #     # Plot vertical lines delimiting epoch starts
-    #     ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
-    #     ax.broken_barh(xranges, yrange, facecolors=colors, alpha=0.8)
-    #     # you can set alpha to 0.6 to check if there are some overlaps
+    for i, _ in enumerate(categories):
+        start_dates = mdates.date2num(df.start_date)
+        end_dates = mdates.date2num(df.end_date)
+        durations = end_dates - start_dates
+        xranges = list(zip(start_dates, durations))
+        ymin = ymins[i] - 0.5
+        yrange = (ymin, bar_height)
+        colors = [colors_dict[event] for event in df.event]
+        # Plot vertical lines delimiting epoch starts
+        ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
+        ax.broken_barh(xranges, yrange, facecolors=colors, alpha=0.8)
+        # you can set alpha to 0.6 to check if there are some overlaps
 
-    # ax.spines["top"].set_visible(False)
-    # ax.spines["right"].set_visible(False)
-    # ax.spines["left"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
 
     # Add the legend
     patches = [mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()]
@@ -335,7 +336,7 @@ def get_plotting_ranges(data_dir):
 
     init = df.iloc[0]
     first_epoch = df[df["event"] == "EPOCH"].iloc[0]
-    first_eval = df[df["event"] == "EVAL"].iloc[0]
+    # first_eval = df[df["event"] == "EVAL"].iloc[0]
     last_event = df.iloc[-1]
 
     td_5s = np.timedelta64(5, 's')
@@ -348,7 +349,7 @@ def get_plotting_ranges(data_dir):
         "first_30s": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_30s),
         "first_5min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_5min),
         "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
-        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
+        # "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
         "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
         "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
     }

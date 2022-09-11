@@ -2,7 +2,7 @@
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: $0 unet3d.log output_dir"
+    echo "Usage: $0 dlrm.log output_dir"
     exit -1
 fi
 

@@ -75,7 +75,7 @@ LAT (ns):		timsetamp difference between enter and exit tracepoints
 FILENAME:       filename
 
 ================================================
-unet3d.log
+dlrm.log
 Application log of the workload (uses mlperf_logging module). Has UNIX timestamps.
 
 ================================================
