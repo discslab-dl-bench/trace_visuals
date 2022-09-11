@@ -47,22 +47,20 @@ main(){
 	if [ $# -eq 2 ] # consider the optional second argument
 	then
 		mode=$2
-	else
-		mode="all"
 	fi
 
-	if [[ "$mode" == "all" ]]
-	then
-		preprocess
-		cd ..
-		plotting
-	elif [[ "$mode" == "plot" ]]
+	if [[ "$mode" == "plot" ]]
 	then
 		plotting
 	
 	elif [[ "$mode" == "prep" ]] # pre stands for preprocess
 	then
 		preprocess
+
+	else
+		preprocess
+		cd ..
+		plotting
 	fi
 
 }
