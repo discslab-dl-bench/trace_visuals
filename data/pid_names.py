@@ -43,7 +43,8 @@ def main(data_dir, output_dir):
         num_worker = 1
         for line in pids_trace:
             # Main process
-            if re.match(r".*python main\.py.*", line):
+            # if re.match(r".*python main\.py.*", line):
+            if re.match(r".*python dlrm_s_pytorch.py*", line):
                 fields = get_fields(line)
                 pid_names[fields[1]] = "master"
             
@@ -64,11 +65,13 @@ def main(data_dir, output_dir):
     else:
         num_worker = 1
         for line in pids_trace:
-            if re.match(r".*launch\.py.*", line):
+            if re.match(r".*dlrm_s_pytorch.py.*", line):
+            # if re.match(r".*launch\.py.*", line):
                 fields = get_fields(line)
                 pid_names[fields[1]] = "master"
 
-            elif re.match(r".*\-u main\.py.*", line):
+            # elif re.match(r".*\-u main\.py.*", line):
+            elif re.match(r".*dlrm_s_pytorch.py.*", line):
                 fields = get_fields(line)
 
                 if fields[1] == fields[2]:
