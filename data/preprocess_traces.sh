@@ -9,11 +9,13 @@ case "${unameOut}" in
     *)          py=python3;;
 esac
 
-if [ $# -lt 2 ]
+if [ $# -lt 3 ]
 then
-    echo "Usage: $0 traces_dir num_gpus"
+    echo "Usage: $0 traces_dir num_gpus workload_name"
+    echo "Note: workload_name only supports: dlio, imseg. Add your way of handling log if you feel like to!"
     exit -1
 fi
+
 
 traces_dir=$1
 
@@ -66,11 +68,31 @@ echo -e "#####################################################################"
 ./gpu.sh $traces_dir/gpu.out $ta_outdir 
 ${py} cpu_gpu.py $ta_outdir/gpu_data/gpu.all $ta_outdir/cpu_data/cpu.all $num_gpus
 
-echo -e "####################################################################"
-echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
-echo -e "####################################################################"
-# Process the app log for timeline plotting
-./mllog.sh $traces_dir/unet3d.log $ta_outdir
-${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+
+# different logging preprocess
+if [[ "$workload_name" == "dlio" ]]
+then
+    # specific to dlio benchmark
+    echo -e "####################################################################"
+    echo -e "dlio_log.py: Find the right DLIO log file and get events from there"
+    echo -e "####################################################################"
+    if [[ ! -d $ta_outdir/mllog_data ]]
+    then
+        echo "Creating output directory $ta_outdir/mllog_data"
+        mkdir $ta_outdir/mllog_data
+    fi
+    ${py} dlio_log.py $traces_dir $ta_outdir/mllog_data/
+elif [[ "$workload_name" == "imseg" ]]
+then
+    # specific to unet3d workload only!
+    echo -e "####################################################################"
+    echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
+    echo -e "####################################################################"
+    # Process the app log for timeline plotting
+    ./mllog.sh $traces_dir/unet3d.log $ta_outdir
+    ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+#elif.... for your own workload log files
+fi
+
 
 echo -e "Preprocessing DONE\n"
