@@ -23,5 +23,7 @@ notes/
 ckpt_*
 unique_pids
 
+data/results_collection
+data/scaled_traces_results
 # Include the example trace data
 !data/4gpu_test_data.tar.gz
