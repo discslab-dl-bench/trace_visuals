@@ -30,6 +30,13 @@ def main(data_dir, output_dir):
             run_method = "mp.spawn"
             break
         
+    pids_trace.seek(0)
+    for line in pids_trace:
+        if re.findall(r"mpirun",line):
+            run_method = "mpirun"
+            break
+    
+
     if run_method is None:
         run_method = "launch.py"
 
@@ -37,8 +44,8 @@ def main(data_dir, output_dir):
     pid_names = {}
 
     pids_trace.seek(0)
-    # Case 1: we used launch.py to launch training.
-    # In this case, all relevant lines will include 'main.py'
+    # Case 1: we used my mp.spawn to launch training.
+    # In this case, 
     if run_method == "mp.spawn":
         num_worker = 1
         for line in pids_trace:
@@ -59,8 +66,22 @@ def main(data_dir, output_dir):
                     num_worker += 1
             else:
                 continue
-    # Case 2: we used my mp.spawn to launch training.
-    # In this case, 
+
+    elif run_method == "mpirun":
+        num_worker = 1
+        for line in pids_trace:
+            if re.findall(r"/bin/dash -c mpirun",line):
+                fields = get_fields(line)
+                pid_names[fields[1]] = "master"
+            elif re.findall(r"src/dlio_benchmark.py",line):
+                fields = get_fields(line)
+                if fields[1] == fields[2]:
+                    pid_names[fields[1]] = f"worker {num_worker}"
+                    num_worker += 1
+                else:
+                    continue
+    # Case 3: we used launch.py to launch training.
+    # In this case, all relevant lines will include 'main.py'
     else:
         num_worker = 1
         for line in pids_trace:
