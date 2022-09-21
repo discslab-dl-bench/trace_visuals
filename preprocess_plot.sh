@@ -32,7 +32,7 @@ plotting(){
 
 main(){
 	# traces_dir=$(echo $1 | awk -F "/" '{print $2}') # name of the dir contains all raw trace results (no need to add data/ in front)
-	traces_dir=$1
+	traces_dir=$(realpath -s  --canonicalize-missing $1)
 
 	# ta_traces_dir="ta_${traces_dir}"
 	py=python3
