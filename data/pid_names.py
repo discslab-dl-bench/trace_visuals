@@ -19,6 +19,14 @@ def main(data_dir, output_dir):
 
     if not os.path.isfile(pids_trace):
         print(f"pids.out not found! Failed.")
+
+    all_files = os.listdir(data_dir)
+    for f in all_files:
+        if re.match(r"pids_[0-9]*",f):
+            pids_trace = os.path.join(data_dir,f)
+
+    if not os.path.isfile(pids_trace):
+        print(f"pids_date.out not found! Abort")
         exit()
         
     pids_trace = open(pids_trace, 'r')
