@@ -182,6 +182,8 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
             ymin = ymins[j] - 0.5
             yrange = (ymin, bar_height)
             colors = [colors_dict[event] for event in df.loc[mask].event]
+            if category == "OPEN":
+                print(xranges)
             ax.broken_barh(xranges, yrange, facecolors=colors, alpha=1)
 
         ax.spines["top"].set_visible(False)
@@ -374,7 +376,8 @@ if __name__ == "__main__":
         title=args.experiment_name,
         filename=f"timelines/{args.experiment_name}/overview.png",
     )
-
+    
+    
     # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
     interesting_time_ranges = get_plotting_ranges(args.data_dir)
 
@@ -392,4 +395,5 @@ if __name__ == "__main__":
             margin=np.timedelta64(1, "s") if name != "init" else np.timedelta64(100, "ms"),
             filename=f"timelines/{args.experiment_name}/{name}.png",
         )
+    
 
