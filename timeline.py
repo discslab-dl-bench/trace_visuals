@@ -34,10 +34,12 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         BIOW="red",
     )
 
+    extra_height = 4 if len(pids) == 1 else 1
+
     fig, axs = plt.subplots(
         nrows=len(pids) + 3,
         ncols=1,
-        figsize=(30, len(pids) * 3),
+        figsize=(30, len(pids) * 3 + extra_height),
         gridspec_kw={"height_ratios": [3] * (len(pids) + 2) + [1]},  # 1 for timeline
         sharex=True,
     )
@@ -311,7 +313,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax.grid(True, axis="x", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
     ax.tick_params(axis="x", which="both", direction="out", rotation=30)
 
-
     fig.suptitle(title)
 
     if filename is not None:
@@ -324,6 +325,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     pathlib.Path(os.path.join("./plots/", output_dir)).mkdir(parents=True, exist_ok=True)
 
     print(f"Saving figure to plots/{filename}")
+    plt.tight_layout(pad=0.5, h_pad=0.5)
     plt.savefig(f"./plots/{filename}", format="png", dpi=500)
 
 
@@ -334,7 +336,11 @@ def get_plotting_ranges(data_dir):
 
     init = df.iloc[0]
     first_epoch = df[df["event"] == "EPOCH"].iloc[0]
-    first_eval = df[df["event"] == "EVAL"].iloc[0]
+    try:
+        first_eval = df[df["event"] == "EVAL"].iloc[0]
+    except:
+        print("no eval in this workload")
+        first_eval = None
     last_event = df.iloc[-1]
 
     td_5s = np.timedelta64(5, 's')
@@ -347,13 +353,12 @@ def get_plotting_ranges(data_dir):
         "first_30s": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_30s),
         "first_5min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_5min),
         "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
-        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
+        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
         "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
         "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
     }
 
     # code.interact(local=locals())
-
     return interesting_time_ranges
 
 
@@ -378,7 +383,8 @@ if __name__ == "__main__":
     interesting_time_ranges = get_plotting_ranges(args.data_dir)
 
     for name, time_range in interesting_time_ranges.items():
-
+        if time_range is None:
+            continue
         start = time_range[0]
         end = time_range[1]
 
