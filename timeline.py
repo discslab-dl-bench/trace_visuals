@@ -272,6 +272,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     categories = ["Timeline"]
 
     ymins = [0]
+
     colors_dict = dict(INIT="blue", BLOCK="gold", EVAL="darkorchid")
 
     # Select the last axes

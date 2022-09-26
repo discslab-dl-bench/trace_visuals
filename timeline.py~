@@ -377,7 +377,7 @@ if __name__ == "__main__":
         filename=f"timelines/{args.experiment_name}/overview.png",
     )
     
-    """
+    
     # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
     interesting_time_ranges = get_plotting_ranges(args.data_dir)
 
@@ -395,5 +395,5 @@ if __name__ == "__main__":
             margin=np.timedelta64(1, "s") if name != "init" else np.timedelta64(100, "ms"),
             filename=f"timelines/{args.experiment_name}/{name}.png",
         )
-    """
+    
 

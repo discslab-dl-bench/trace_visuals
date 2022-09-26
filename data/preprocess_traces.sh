@@ -11,11 +11,14 @@ esac
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: $0 traces_dir num_gpus"
+    echo "Usage: $0 traces_dir num_gpus pid workload"
     exit -1
 fi
 
 traces_dir=$1
+num_gpus=$2
+pid=$3
+workload=$4
 
 traces_basename=$(basename $traces_dir)
 traces_dirname=$(dirname $traces_dir)
@@ -23,8 +26,6 @@ traces_dirname=$(dirname $traces_dir)
 ta_outdir="${traces_dirname}/ta_${traces_basename}"
 echo Creating $ta_outdir
 mkdir -p $ta_outdir
-
-num_gpus=$2
 
 echo -e "\nStarting data pre-processing pipeline\n"
 
@@ -43,7 +44,8 @@ then
 fi
 
 # Extract PIDs and their human readable names
-${py} pid_names.py $traces_dir $ta_outdir
+echo $pid > $ta_outdir/pids
+echo "\"${pid}\": "workers"" > $ta_outdir/pids.json
 
 echo -e "####################################################################"
 echo -e "split_traces_by_pid.sh: Splitting traces into individual PID files."
@@ -66,11 +68,29 @@ echo -e "#####################################################################"
 ./gpu.sh $traces_dir/gpu.out $ta_outdir $num_gpus 
 ${py} cpu_gpu.py $ta_outdir/gpu_data/gpu.all $ta_outdir/cpu_data/cpu.all $num_gpus
 
-echo -e "####################################################################"
-echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
-echo -e "####################################################################"
-# Process the app log for timeline plotting
-./mllog.sh $traces_dir/bert.log $ta_outdir
-${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+
+# different logging preprocess
+if [[ $workload == "dlio" ]]
+then
+    # specific to dlio benchmark
+    echo -e "####################################################################"
+    echo -e "dlio_log.py: Find the right DLIO log file and get events from there"
+    echo -e "####################################################################"
+    if [[ ! -d $ta_outdir/mllog_data ]]
+    then
+        echo "Creating output directory $ta_outdir/mllog_data"
+        mkdir $ta_outdir/mllog_data
+    fi
+    ${py} dlio_log.py $traces_dir $ta_outdir/mllog_data/
+elif [[ $workload == "bert" ]]
+then
+    # specific to unet3d workload only!
+    echo -e "####################################################################"
+    echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from imseg app log"
+    echo -e "####################################################################"
+    # Process the app log for timeline plotting
+    ./mllog.sh $traces_dir/bert.log $ta_outdir
+    ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+fi
 
 echo -e "Preprocessing DONE\n"
