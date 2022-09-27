@@ -85,7 +85,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     # Plot GPU
     #
     df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
-    # embed()
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     
     if start is not None:
@@ -135,7 +134,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax1.legend(loc="center left")
     ax2.legend(loc="center right")
 
-
     # Plot PIDs
     #
     for i, pid in enumerate(pids):
@@ -151,7 +149,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         df = df[["start_date", "end_date", "event"]]
         df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
         df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
-        # embed()
         if start is not None:
             df = df[df["start_date"] >= np.datetime64(start)]
         if end is not None:
@@ -215,6 +212,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
 
     # Sometimes the range we try to plot contains nothing so the limits are NaT
     # and the program throws a value error "Axis limits cannot be NaN or Inf"
+    # embed()
     try:
         ax.set_xlim(
             df.start_date.min() - margin,
