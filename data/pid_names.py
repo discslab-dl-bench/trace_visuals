@@ -5,6 +5,11 @@ import argparse
 import pathlib
 
 def get_fields(line):
+    """
+        Split the line on whitespace, join it on a single space then split it again.
+        This makes it return nicely delimited tokens because the original number of
+        spaces is variable.
+    """
     return " ".join(line.split()).split(" ")
 
 
@@ -18,7 +23,7 @@ def main(data_dir, output_dir):
     pids_trace = os.path.join(data_dir, "pids.out")
 
     if not os.path.isfile(pids_trace):
-        print(f"pids.out not found! Failed.")
+        print(f"pids.out not found! Looking for pids_<date>.out")
     
     # sort the pids_date.out files to make sure we get pids.json correctly
     all_files = sorted(os.listdir(data_dir))
@@ -27,24 +32,27 @@ def main(data_dir, output_dir):
             pids_trace = os.path.join(data_dir,f)
 
     if not os.path.isfile(pids_trace):
-        print(f"pids_date.out not found! Abort")
+        print(f"pids_<date>.out not found! Abort")
         exit()
         
     pids_trace = open(pids_trace, 'r')
+
     # Identify the run method
     run_method = None
     for line in pids_trace:
         if re.match(r'.*resource_tracker.*', line):
             run_method = "mp.spawn"
             break
-        
-    pids_trace.seek(0)
-    for line in pids_trace:
-        if re.findall(r"mpirun",line):
+        elif re.findall(r"mpirun",line):
             run_method = "mpirun"
             break
+        elif re.findall(r"dlrm_s_pytorch",line):
+            run_method = "dlrm"
+            break
+        else:
+            continue
     
-
+    # Default run method, though now with multiple workloads this is no longer valid
     if run_method is None:
         run_method = "launch.py"
 
@@ -88,6 +96,22 @@ def main(data_dir, output_dir):
                     num_worker += 1
                 else:
                     continue
+
+    elif run_method == "dlrm":
+        num_worker = 1
+        for line in pids_trace:
+            if re.findall(r"run_in_container.sh",line):
+                fields = get_fields(line)
+                pid_names[fields[1]] = "launch script"
+            elif re.findall(r"dlrm_s_pytorch.py",line):
+                fields = get_fields(line)
+                if fields[1] == fields[2]:
+                    pid_names[fields[1]] = f"worker {num_worker}"
+                    num_worker += 1
+                else:
+                    continue
+
+
     # Case 3: we used launch.py to launch training.
     # In this case, all relevant lines will include 'main.py'
     else:
@@ -120,9 +144,6 @@ def main(data_dir, output_dir):
                 
 if __name__ == "__main__":
 
-    print('#####################################################')
-    print("pid_names.py: Extracting PID information from traces")
-    print('#####################################################\n')
 
     p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
     p.add_argument("data_dir", help="Raw traces directory")
@@ -133,6 +154,10 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid data dir given")
         exit(-1) 
     
+    print('#####################################################')
+    print("pid_names.py: Extracting PID information from traces")
+    print('#####################################################\n')
+
     if not os.path.isdir(args.data_dir):
         pathlib.Path(args.data_dir).mkdir(exist_ok=True, parents=True)
     

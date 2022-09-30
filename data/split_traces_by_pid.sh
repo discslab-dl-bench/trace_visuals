@@ -47,8 +47,8 @@ while read pid; do
 
     # Block IO trace
     # Extract the pid's lines from the trace, remove less relevant columns
-    # We're keeping only timestamp, pid, r/w, sector, req size, latency.
-    grep -a " $pid " $1/bio_time_aligned.out | awk -F '\\s+' '{print $1,$2,$7,$8,$9,$10}' > "$datadir/bio_data/bio_$pid"
+    # We're keeping only timestamp, pid, r/w, size, latency.
+    grep -a " $pid " $1/bio_time_aligned.out | awk -F '\\s+' '{print $1,$2,$5,$6,$8}' > "$datadir/bio_data/bio_$pid"
 
     grep -a " $pid " $1/openat_time_aligned.out | awk -F ' ' '{print $1,$2,$4,$5,$6}' > "$datadir/open_data/open_$pid"
 

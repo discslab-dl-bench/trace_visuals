@@ -24,9 +24,9 @@ def process_timeline(datadir):
         key_parts = log["key"].split("_")
 
         evt = key_parts[0].upper()
-        evt_type = key_parts[1]
+        evt_type = key_parts[1].upper()
 
-        if evt_type == "stop":
+        if evt_type == "STOP":
             if evt not in started_events:
                 print(f"No starting event for {log['key']} at ts {log['time_ms']}\n")
                 continue

@@ -27,7 +27,7 @@ sed -i 's/{, /{/' $output_dir/u.log
 # Extract training timeline info 
 # Note: block_start/stop and epoch_start/stop are seemingly the same (with epoch encapsulated in block however) 
 # so we omit epoch_start/stop to avoid duplicates that don't add info
-grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop" $output_dir/u.log > $output_dir/timeline.log
+grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop|TRAINING_START|TRAINING_STOP" $output_dir/u.log > $output_dir/timeline.log
 sed -i '$ d' $output_dir/timeline.log
 
 awk 'BEGIN { print "[" } { print $0"," }' $output_dir/timeline.log > tmp && mv tmp $output_dir/timeline.log

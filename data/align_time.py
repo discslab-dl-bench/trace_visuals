@@ -12,10 +12,10 @@ UTC_TIME_DELTA = 4
 TRACES = ["bio", "openat", "read", "write"]
 
 TRACES_AND_EXPECTED_NUM_COLUMNS = {
-    "bio": 9,
+    "bio": [8, 9],
     "openat": [5,6],    # Both 5 and 6 are valid
-    "read": 6,
-    "write": 9 
+    "read": [5, 6],
+    "write": [8, 9] 
 }
 
 """
