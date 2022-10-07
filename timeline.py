@@ -1,3 +1,4 @@
+from distutils.command.build_scripts import first_line_re
 import json
 import code
 import os.path
@@ -6,9 +7,10 @@ import argparse
 import numpy as np
 import pandas as pd
 from matplotlib import dates as mdates, pyplot as plt, patches as mpatches, colors
+from pyrsistent import v
 
 
-def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%H:%M", margin=np.timedelta64(60, "s"), filename=None):
+def plot_pids_timeline_cpu_gpu(data_dir, workload, title, name=None, start=None, end=None, xformat="%H:%M", margin=np.timedelta64(60, "s"), filename=None, vlines=None):
 
     print(f"Generating plot {title}")
 
@@ -130,11 +132,20 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax1.grid(True, which="both", linestyle="--")
     ax1.tick_params(which="both", direction="in", grid_color="grey", grid_alpha=0.2)
 
-    ax1.set_ylim(ymin=0)
+    ax1.set_ylim(ymin=0, ymax=100)
     ax2.set_ylim(ymin=0)
 
-    ax1.legend(loc="center left")
-    ax2.legend(loc="center right")
+    # ax1.legend(loc="center left")
+    # ax2.legend(loc="center right")
+    handles, labels = [(a + b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
+    ax2.legend(handles, labels, loc='right')
+
+#     axbox = ax2.get_position()
+
+# # to place center point of the legend specified by loc at the position specified by bbox_to_anchor!
+# fig.legend([line1, line2], ['yep', 'nope'], loc='center', ncol=2,
+#            bbox_to_anchor=[axbox.x0+0.5*axbox.width, axbox.y0-0.05], bbox_transform=fig.transFigure)
+
 
     # Plot PIDs
     #
@@ -230,6 +241,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     df = df[["start_date", "end_date", "event"]]
     df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
     df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+    print(df)
 
     if start is not None:
         print(f"Filtering with start date >= {start}")
@@ -239,6 +251,8 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
         print(f"Filtering with end date <= {end}")
         df = df[df["end_date"] <= np.datetime64(end)]
         print(df.head())
+
+    print(df)
 
     # Add synthetic data to show timeline info when no data point is included in the desired range
     # Uncomment/modify according to needs
@@ -265,13 +279,27 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     #     print(df.shape)
     # else:
     if df.shape[0] == 0:
-        print("Pad with epoch")
-        df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
+        if name == 'first_30s' or name == 'init':
+            print("Pad with init")
+            df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "INIT"]
+        else:
+            print("Pad with epoch")
+            if workload == "imseg":
+                df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
+            else:
+                df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "TRAINING"]
+
 
     categories = ["Timeline"]
 
     ymins = [0]
-    colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid")
+
+    if workload == "imseg":
+        colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid")
+    elif workload == "dlrm":
+        colors_dict = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
+    else:   # E.g. BERT
+        colors_dict = dict(INIT="blue", TRAINING="gold", CHECKPOINT="mediumvioletred")
 
     # Select the last axes
     ax = axs[-1]
@@ -293,6 +321,20 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
+
+    # Plot vertical lines 
+    # vlines format is a dictionary of label -> time
+    # x_bounds = tuple(np.datetime64(x) for x in ax.get_xlim())
+    # print(x_bounds)
+    if vlines:
+        for label, xpos in vlines.items():
+            if start is not None and end is not None:
+                if xpos > start and xpos < end:
+                    ax.axvline(x=xpos, linewidth=0.7)
+                    ax.annotate(text=label, xy=(xpos, 0), xytext =(xpos,0.8), fontsize=8, rotation=45)
+            else:
+                ax.axvline(x=xpos, linewidth=0.7)
+                ax.annotate(text=label, xy=(xpos, 0), xytext =(xpos,0.8), fontsize=8, rotation=45)
 
     # Add the legend
     patches = [mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()]
@@ -323,20 +365,29 @@ def plot_pids_timeline_cpu_gpu(data_dir, title, start=None, end=None, xformat="%
     output_dir = os.path.dirname(filename)
     pathlib.Path(os.path.join("./plots/", output_dir)).mkdir(parents=True, exist_ok=True)
 
-    print(f"Saving figure to plots/{filename}")
+    print(f"Saving figure to plots/{filename}\n")
     plt.tight_layout(pad=0.5, h_pad=0.5)
     plt.savefig(f"./plots/{filename}", format="png", dpi=500)
 
 
 
-def get_plotting_ranges(data_dir):
+def get_plotting_ranges(data_dir, workload):
 
     df = pd.read_csv(os.path.join(data_dir, "mllog_data/timeline.csv"), names=["start_date", "end_date", "event"])
 
     init = df.iloc[0]
-    first_epoch = df[df["event"] == "EPOCH"].iloc[0]
+
+    if workload == "imseg":
+        first_epoch = df[df["event"] == "EPOCH"].iloc[0]
+        first_training = None
+    else:
+        # For DLRM or BERT, we train on a single epoch, so we use 'TRAINING' events instead
+        first_epoch = None
+        first_training = df[df["event"] == "TRAINING"].iloc[0]
+
     try:
         first_eval = df[df["event"] == "EVAL"].iloc[0]
+        second_eval = df[df["event"] == "EVAL"].iloc[1]
     except:
         print("no eval in this workload")
         first_eval = None
@@ -348,10 +399,22 @@ def get_plotting_ranges(data_dir):
     td_5min = np.timedelta64(5, 'm')
 
     interesting_time_ranges = {
-        "init": (np.datetime64(init.start_date), np.datetime64(init.end_date)),
-        "first_30s": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_30s),
-        "first_5min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_5min),
-        "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
+        # "init": (np.datetime64("2022-09-29T19:32:25.00"), np.datetime64(init.end_date) + td_5s),
+        # "first 2 epochs": (np.datetime64("2022-09-06T06:19:20.981"), np.datetime64("2022-09-06T06:55:32.279") + td_30s),
+        # "2nd epoch": (np.datetime64("2022-09-06T06:39:16.988"), np.datetime64("2022-09-06T06:55:32.279") + td_5s),
+        # "reading": (np.datetime64("2022-10-05T01:48:50.500"), np.datetime64("2022-10-05T01:49:15.7")),
+        # "day_6_file_read": (np.datetime64("2022-09-29T19:32:30.239506016") - td_5s, np.datetime64("2022-09-29T19:32:44.958460081") + td_5s),
+        # "day_0_file_read": (np.datetime64("2022-09-29T19:33:01.420377093") - td_5s, np.datetime64("2022-09-29T19:33:15.946566115") + td_5s),
+        # "day_1_file_read": (np.datetime64("2022-09-29T19:42:48.089316076") - td_5s, np.datetime64("2022-09-29T19:42:57.752291574") + td_5s),
+        # "day_2_file_read": (np.datetime64("2022-09-29T19:56:33.207792720") - td_5s, np.datetime64("2022-09-29T19:56:47.943868838") + td_5s),
+        # "day_3_file_read": (np.datetime64("2022-09-29T20:10:30.240881200") - td_5s, np.datetime64("2022-09-29T20:10:39.802377009") + td_5s),
+        # "day_4_file_read": (np.datetime64("2022-09-29T20:24:18.938153014") - td_5s, np.datetime64("2022-09-29T20:24:28.575144348") + td_5s),
+        # "day_5_file_read": (np.datetime64("2022-09-29T20:33:37.799697746") - td_5s, np.datetime64("2022-09-29T20:33:48.829317627") + td_5s),
+        "Overview": (np.datetime64(init.start_date) - td_5s, np.datetime64(second_eval.end_date) + td_5s) if first_training is not None else None, 
+        "init": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.end_date) + td_5s),
+        "first_5min": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.start_date) + td_5min),
+        "first_training": (np.datetime64(first_training.start_date) - td_5s, np.datetime64(first_training.end_date) + td_5s) if first_training is not None else None, 
+        "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s) if first_epoch is not None else None, 
         "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
         "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
         "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
@@ -365,6 +428,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Create the timeline plots for a given run")
     p.add_argument("data_dir", help="Directory where the preprocessed traces are")
+    p.add_argument("workload", help="Name of the workload")
     p.add_argument("experiment_name", help="Title of the plot")
     args = p.parse_args()
 
@@ -372,14 +436,26 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid trace directory")
         exit(-1) 
 
-    plot_pids_timeline_cpu_gpu(
-        args.data_dir,
-        title=args.experiment_name,
-        filename=f"timelines/{args.experiment_name}/overview.png",
-    )
+    # Custom plotting
+    # file_opens = {
+    #     "day_6": np.datetime64("2022-09-29T19:32:30.238828817"),    # test data file
+    #     "day_0": np.datetime64("2022-09-29T19:33:01.419774134"),
+    #     "day_1": np.datetime64("2022-09-29T19:42:48.088704926"),
+    #     "day_2": np.datetime64("2022-09-29T19:56:33.207291549"),
+    #     "day_3": np.datetime64("2022-09-29T20:10:30.240392129"),
+    #     "day_4": np.datetime64("2022-09-29T20:24:18.937630143"),
+    #     "day_5": np.datetime64("2022-09-29T20:33:37.386817568"),
+    # }
+
+    # plot_pids_timeline_cpu_gpu(
+    #     args.data_dir,
+    #     args.workload,
+    #     title=args.experiment_name,
+    #     filename=f"timelines/{args.experiment_name}/overview.png",
+    # )
 
     # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
-    interesting_time_ranges = get_plotting_ranges(args.data_dir)
+    interesting_time_ranges = get_plotting_ranges(args.data_dir, args.workload)
 
     for name, time_range in interesting_time_ranges.items():
         if time_range is None:
@@ -389,7 +465,9 @@ if __name__ == "__main__":
 
         plot_pids_timeline_cpu_gpu(
             args.data_dir,
+            args.workload,
             title=f"{args.experiment_name} - {name}",
+            name = name,
             start=start,
             end=end,
             xformat="%H:%M:%S",

@@ -2,12 +2,13 @@
 
 if [ $# -lt 2 ]
 then
-    echo "Usage: $0 unet3d.log output_dir"
+    echo "Usage: $0 unet3d.log output_dir workload"
     exit -1
 fi
 
 logfile=$1
 output_dir=$2
+workload=$3
 
 if [[ ! -d $output_dir/mllog_data ]]
 then
@@ -25,13 +26,28 @@ awk -F ', ' 'BEGIN { OFS= ", "; ORS="\n"} {$1="{"; print $0}' $output_dir/u.log 
 sed -i 's/{, /{/' $output_dir/u.log
 
 # Extract training timeline info 
-# Note: block_start/stop and epoch_start/stop are seemingly the same (with epoch encapsulated in block however) 
-# so we omit epoch_start/stop to avoid duplicates that don't add info
-grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop|TRAINING_START|TRAINING_STOP" $output_dir/u.log > $output_dir/timeline.log
+# The log will contain different events depending on the workload
+
+if [[ $workload == "imseg" ]]
+then
+    grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+elif [[ $workload == "dlrm" ]]
+then
+    grep -Ea "init_start|init_stop|run_start|run_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+elif [[ $workload == "bert" ]]
+then
+    grep -Ea "init_start|init_stop|run_start|run_stop|block_start|block_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+else
+    echo "Unknown workload $workload"
+    exit
+fi
+
 sed -i '$ d' $output_dir/timeline.log
 
 awk 'BEGIN { print "[" } { print $0"," }' $output_dir/timeline.log > tmp && mv tmp $output_dir/timeline.log
 # Remove last comma, make valid JSON array
 sed -i '$ s/.$/\n]/' $output_dir/timeline.log
+
+rm $output_dir/u.log
 
 echo -e "All done\n"

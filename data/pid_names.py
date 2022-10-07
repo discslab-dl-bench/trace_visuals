@@ -49,6 +49,9 @@ def main(data_dir, output_dir):
         elif re.findall(r"dlrm_s_pytorch",line):
             run_method = "dlrm"
             break
+        elif re.findall(r"run_pretraining",line):
+            run_method = "bert"
+            break
         else:
             continue
     
@@ -111,6 +114,19 @@ def main(data_dir, output_dir):
                 else:
                     continue
 
+    elif run_method == "bert":
+        num_worker = 1
+        for line in pids_trace:
+            # if re.findall(r"train_model.sh",line):
+            #     fields = get_fields(line)
+            #     pid_names[fields[1]] = "launch script"
+            if re.findall(r"run_pretraining.py",line):
+                fields = get_fields(line)
+                if fields[1] == fields[2]:
+                    pid_names[fields[1]] = f"Worker {num_worker}"
+                    num_worker += 1
+                else:
+                    continue
 
     # Case 3: we used launch.py to launch training.
     # In this case, all relevant lines will include 'main.py'
