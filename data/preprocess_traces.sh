@@ -35,8 +35,11 @@ echo -e "\nStarting data pre-processing pipeline\n"
 # allowing us to combine the bpf traces with traces from other sources.
 ${py} align_time.py $traces_dir $ta_outdir
 
-# Remove bio operations > 1s as they will clutter the plot
-${py} bio_long_calls.py $ta_outdir/bio_time_aligned.out
+[[ $? -eq 1 ]] && exit 1
+
+# Print out long bio operations. 
+# Run this command without the -p flag to remove them from the trace
+${py} bio_long_calls.py -p $ta_outdir/bio_time_aligned.out > $ta_outdir/bio_long_reads
 
 # Check for integer overflows in the read trace
 # Should not happen anymore since the traces were fixed at the source
@@ -63,6 +66,14 @@ echo -e "####################################################################"
 # Extract timeline information and transform data for timeline plotting
 ./prepare_traces_for_timelines.sh $ta_outdir
 
+# For image segmentation plotting, we create this fake process 111111 and
+# merge all workers' activity ot it. To plot this, modifiy pids.json.
+if [[ "$workload_name" == "imseg" ]]
+then
+    cat $ta_outdir/traces_data/comb_* > $ta_outdir/traces_data/comb_111111
+    sort -o $ta_outdir/traces_data/comb_111111 $ta_outdir/traces_data/comb_111111
+fi
+
 echo -e "#####################################################################"
 echo -e "cpu.sh, gpu.sh, cpu_gpu.py: Preparing CPU and GPU traces for plotting"
 echo -e "#####################################################################"
@@ -85,26 +96,24 @@ then
         mkdir $ta_outdir/mllog_data
     fi
     ${py} dlio_log.py $traces_dir $ta_outdir/mllog_data/
-elif [[ "$workload_name" == "imseg" ]]
-then
-    # specific to unet3d workload only!
+else 
     echo -e "####################################################################"
     echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from app log"
     echo -e "####################################################################"
-    # Process the app log for timeline plotting
-    ./mllog.sh $traces_dir/unet3d.log $ta_outdir
-    ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
-#elif.... for your own workload log files
-elif [[ "$workload_name" == "dlrm" ]]
-then
-    # specific to unet3d workload only!
-    echo -e "####################################################################"
-    echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from app log"
-    echo -e "####################################################################"
-    # Process the MLLOG log for timeline plotting
-    ./mllog.sh $traces_dir/dlrm.log $ta_outdir
-    ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
-fi
 
+    # For imseg, the log file has a different name than the workload
+    if [[ "$workload_name" == "imseg" ]]
+    then
+        logfile="unet3d.log"
+    else
+        logfile=${workload_name}.log
+    fi
+
+    # Process the app log for timeline plotting
+    ./mllog.sh ${traces_dir}/${logfile} $ta_outdir $workload_name
+    ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
+    # Used only for BERT in practice, but won't change the others
+    sed -i 's/BLOCK/TRAINING/' $ta_outdir/mllog_data/timeline.csv
+fi
 
 echo -e "Preprocessing DONE\n"
