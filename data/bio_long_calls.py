@@ -20,7 +20,7 @@ def process_trace(bio_trace, lat_threshold):
 
 
         if latency > lat_threshold:
-            print(f"Line {i}: Removing long latency operation of {latency:,} ns")
+            print(f"{cols[0]} (line {i}): Long latency of {latency:,} ns")
         else:
             outfile.write(line)
 
@@ -49,6 +49,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Go through the bio trace and remove any long operations")
     p.add_argument("bio_trace", help="Time aligned bio trace")
+    p.add_argument("-t", "--threshold", type=int, help="Detection threshold in ns")
     p.add_argument("-p", "--just-print", action='store_true', help="Only print out the long calls")
     args = p.parse_args()
 
@@ -56,11 +57,16 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid bio trace {args.bio_trace}")
         exit(-1) 
 
-    print(f"Checking bio trace for operations longer than {LATENCY_THRESHOLD:,} ns")
+    if args.threshold:
+        threshold = args.threshold
+    else:
+        threshold = LATENCY_THRESHOLD
+
+    print(f"Checking bio trace for operations longer than {threshold:,} ns")
 
     if args.just_print:
-        print_long_calls(args.bio_trace, LATENCY_THRESHOLD)
+        print_long_calls(args.bio_trace, threshold)
     else:
-        process_trace(args.bio_trace, LATENCY_THRESHOLD)
+        process_trace(args.bio_trace, threshold)
 
     print("All done\n")
