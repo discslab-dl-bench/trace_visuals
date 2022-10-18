@@ -16,7 +16,7 @@ TRACES_AND_EXPECTED_NUM_COLUMNS = {
     "bio": [8, 9],      # Old bio trace was 9, new one is 8
     "openat": [5, 6],   # Both 5 and 6 are valid
     "read": [5, 6],
-    "write": [8, 9]     # Old trace was [8, 9]    
+    "write": [5, 6]     # Old trace was [8, 9]    
 }
 
 """
