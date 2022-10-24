@@ -11,11 +11,12 @@ UTC_TIME_DELTA = 4
 # We don't care about close, create_del for plotting (for now)
 TRACES = ["bio", "openat", "read", "write"]
 
+# Some lines can have an extra column or two, e.g. if reading from a file with a name vs anonymous
 TRACES_AND_EXPECTED_NUM_COLUMNS = {
-    "bio": 9,
-    "openat": [5,6],    # Both 5 and 6 are valid
-    "read": 6,
-    "write": 9 
+    "bio": [8, 9],      # Old bio trace was 9, new one is 8
+    "openat": [5, 6],   # Both 5 and 6 are valid
+    "read": [5, 6],
+    "write": [5, 6]     # Old trace was [8, 9]    
 }
 
 """
@@ -111,19 +112,19 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
 
     ref_t = ref_t + np.timedelta64(UTC_TIME_DELTA, "h")
 
+    # The traces have some lines at the start where we print out columns or other info
+    # We want to skip those as they don't contain useful information
+    regex_start_w_number = re.compile(r'^[0-9].*')
+
     for trace in TRACES:
 
         print(f"\tProcessing {trace}")
-
+        error_count = 0
         expected_num_cols = TRACES_AND_EXPECTED_NUM_COLUMNS[trace]
 
         filename = "trace_" + trace + ".out"
         tracefile = open(os.path.join(traces_dir, filename), "r")
         outfile = open(os.path.join(output_dir, trace + "_time_aligned.out"), "w")
-
-        # The traces have some lines at the start where we print out columns or other info
-        # We want to skip those as they don't contain useful information
-        regex_start_w_number = re.compile(r'^[0-9].*')
         
         for i, line in enumerate(tracefile):
             try:
@@ -144,11 +145,21 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                             break
 
                     if not got_expected:
+                        error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
+                        if error_count > 100:
+                            print(f"\nERROR: More than 100 errors during processing of {filename}. Aborting.")
+                            print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
+                            exit(1)
                         continue
                 else:
                     if len(cols) != expected_num_cols:
+                        error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
+                        if error_count > 100:
+                            print(f"\nERROR: nMore than 100 errors during processing of {filename}. Aborting.")
+                            print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
+                            exit(1)
                         continue 
 
                 # Handle lines that don't start with a number - they should be catched by the expected

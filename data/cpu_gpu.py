@@ -54,7 +54,7 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
                 mem.append(int(cols[6]))
                 fb.append(int(cols[9]))
             except Exception as e:
-                print(f"aruond line {line_no + i}")
+                print(f"around line {line_no + i}")
                 print(e)
                 print(line)
 
