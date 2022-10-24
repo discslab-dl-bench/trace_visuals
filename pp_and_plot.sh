@@ -23,6 +23,7 @@ datadirname=$(dirname $datadir)
 datadir_relative=${datadir#data/}
 echo "Datadir relative $datadir_relative"
 
+# ta_dir=$datadir/raid/data/dlrm/dlrm_tracing/terabyte_tracing_20221001223330ame/ta_$expname
 ta_dir=$datadirname/ta_$expname
 
 pushd data

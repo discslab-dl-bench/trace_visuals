@@ -70,7 +70,7 @@ echo -e "####################################################################"
 echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from dlrm app log"
 echo -e "####################################################################"
 # Process the app log for timeline plotting
-./mllog.sh $traces_dir/dlrm.log $ta_outdir
+./mllog.sh $traces_dir/dlio.log $ta_outdir
 ${py} mllog_UNIX_to_UTC_ts.py $ta_outdir/mllog_data/
 
 echo -e "Preprocessing DONE\n"
