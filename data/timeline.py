@@ -369,7 +369,7 @@ def get_plotting_ranges(data_dir):
         "first_30min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_30min),
         "first_60min": (np.datetime64(init.start_date), np.datetime64(init.start_date) + td_60min),
         # "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s),
-        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
+        # "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s),
         # "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
         # "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
         # "20min_middle": (np.datetime64(last_event.end_date) - td_100min, np.datetime64(last_event.end_date)-td_80min),

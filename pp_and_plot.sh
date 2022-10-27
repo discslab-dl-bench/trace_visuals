@@ -27,6 +27,6 @@ echo "Datadir relative $datadir_relative"
 ta_dir=$datadirname/ta_$expname
 
 pushd data
-./preprocess_traces.sh $datadir_relative $num_gpus
+./preprocess_traces.sh $datadir_relative $num_gpus dlio
 popd
-${py} timeline.py $ta_dir $expname
+# ${py} timeline.py $ta_dir $expname
