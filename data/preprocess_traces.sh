@@ -12,7 +12,6 @@ esac
 if [ $# -lt 3 ]
 then
     echo "Usage: $0 traces_dir num_gpus workload_name"
-    echo "Note: workload_name only supports: dlio, imseg. Add your way of handling log if you feel like to!"
     exit -1
 fi
 
@@ -96,6 +95,7 @@ then
         mkdir $ta_outdir/mllog_data
     fi
     ${py} dlio_log.py $traces_dir $ta_outdir/mllog_data/
+    sed -i 's/BLOCK/TRAINING/' $ta_outdir/mllog_data/timeline.csv
 else 
     echo -e "####################################################################"
     echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from app log"

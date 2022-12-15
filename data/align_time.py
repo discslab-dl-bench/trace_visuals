@@ -4,8 +4,10 @@ import pathlib
 import numpy as np
 import argparse
 
-# We are in eastern time, so UTC-4
-UTC_TIME_DELTA = 4
+# We are in eastern time, so UTC-4 during DST and UTC-5 otherwise
+UTC_TIME_DELTA = 5
+
+MAX_ERR_COUNT = 450
 
 # Add any new trace we want to time align here
 # We don't care about close, create_del for plotting (for now)
@@ -147,8 +149,8 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                     if not got_expected:
                         error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
-                        if error_count > 100:
-                            print(f"\nERROR: More than 100 errors during processing of {filename}. Aborting.")
+                        if error_count > MAX_ERR_COUNT:
+                            print(f"\nERROR: More than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
                             print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
                         continue
@@ -156,8 +158,8 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                     if len(cols) != expected_num_cols:
                         error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
-                        if error_count > 100:
-                            print(f"\nERROR: nMore than 100 errors during processing of {filename}. Aborting.")
+                        if error_count > MAX_ERR_COUNT:
+                            print(f"\nERROR: nMore than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
                             print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
                         continue 

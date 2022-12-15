@@ -5,8 +5,8 @@ from statistics import mean
 from datetime import datetime
 from itertools import zip_longest as izip_longest
 
-# We are in eastern time, so UTC-4
-UTC_TIME_DELTA = 4
+# We are in eastern time, so UTC-4 during DST, UTC-5 otherwise
+UTC_TIME_DELTA = 5
 
 def sliding_window(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
@@ -131,7 +131,7 @@ def process_cpu_data(cpu_trace, current_date):
 
     date_changed = False
 
-    for line in infile:
+    for i, line in enumerate(infile):
         # Remove duplicate spaces, and split
         cols = split_cpu_trace_line_cols(line)
 
@@ -144,10 +144,12 @@ def process_cpu_data(cpu_trace, current_date):
         if not date_changed and cols[0] == "00:00:00":
             current_date += 1
             date_changed = True
-
-        # Make UTC timestamp from time and current date
-        cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(UTC_TIME_DELTA, "h"))
-
+        try:
+            # Make UTC timestamp from time and current date
+            cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(UTC_TIME_DELTA, "h"))
+        except:
+            print(f"error line {i}: current date: {current_date}")
+            
         # Join the columns with commas and write to the CSV file
         outcsv.write(",".join(cols) + "\n")
 

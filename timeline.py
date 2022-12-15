@@ -345,7 +345,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     ax.grid(True, axis="x", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
     ax.tick_params(axis="x", which="both", direction="out", rotation=30)
 
-    # fig.suptitle(title)
+    fig.suptitle(title)
 
     if filename is not None:
         filename = filename
