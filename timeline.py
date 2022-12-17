@@ -357,7 +357,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     pathlib.Path(os.path.join("./plots/", output_dir)).mkdir(parents=True, exist_ok=True)
 
     print(f"Saving figure to plots/{filename}\n")
-    plt.tight_layout(pad=0.5, h_pad=0.5)
+    # plt.tight_layout(pad=0.5, h_pad=0.5)
     plt.savefig(f"./plots/{filename}", format="png", dpi=550)
 
 

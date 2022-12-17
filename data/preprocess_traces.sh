@@ -38,7 +38,7 @@ ${py} align_time.py $traces_dir $ta_outdir
 
 # Print out long bio operations. 
 # Run this command without the -p flag to remove them from the trace
-${py} bio_long_calls.py -p $ta_outdir/bio_time_aligned.out > $ta_outdir/bio_long_reads
+${py} bio_long_calls.py $ta_outdir/bio_time_aligned.out > $ta_outdir/bio_long_reads
 
 # Check for integer overflows in the read trace
 # Should not happen anymore since the traces were fixed at the source
@@ -79,7 +79,7 @@ echo -e "#####################################################################"
 # Process the CPU and GPU traces
 ./cpu.sh $traces_dir/cpu.out $ta_outdir
 ./gpu.sh $traces_dir/gpu.out $ta_outdir 
-${py} cpu_gpu.py $ta_outdir/gpu_data/gpu.all $ta_outdir/cpu_data/cpu.all $num_gpus
+${py} cpu_gpu.py $traces_dir $ta_outdir $num_gpus
 
 
 # different logging preprocess

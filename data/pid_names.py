@@ -26,6 +26,8 @@ def main(data_dir, output_dir):
         print(f"pids.out not found! Looking for pids_<date>.out")
     
     # sort the pids_date.out files to make sure we get pids.json correctly
+    # Will open the pid file with larger timestamp if there are multiple
+    # which is what we want since often the first one doesn't have all processes ready
     all_files = sorted(os.listdir(data_dir))
     for f in all_files:
         if re.match(r"pids_[0-9]*",f):
@@ -34,7 +36,8 @@ def main(data_dir, output_dir):
     if not os.path.isfile(pids_trace):
         print(f"pids_<date>.out not found! Abort")
         exit()
-        
+    
+    print(f"Opening pid file {pids_trace}")
     pids_trace = open(pids_trace, 'r')
 
     # Identify the run method
@@ -89,11 +92,27 @@ def main(data_dir, output_dir):
     elif run_method == "mpirun":
         num_worker = 1
         for line in pids_trace:
-            if re.findall(r"/bin/dash -c mpirun",line):
-                fields = get_fields(line)
-                pid_names[fields[1]] = "master"
+            if re.findall(r"mpirun",line):
+                # We can actually ignore the master process as it does not do much
+                continue
+                # fields = get_fields(line)
+                # pid_names[fields[1]] = "master"
             elif re.findall(r"src/dlio_benchmark.py",line):
                 fields = get_fields(line)
+                # Checks if the PID == SPID, which corresponds to the first thread of the group
+                # There are mny threads (dif SPIDs) for each PID, we only keep track of the first
+                if fields[1] == fields[2]:
+                    pid_names[fields[1]] = f"worker {num_worker}"
+                    num_worker += 1
+                else:
+                    continue
+            # mpirun is also used under hood with horovod, 
+            # which can be used to launch the various workloads.
+            # This catches BERT launched with horovod
+            elif re.findall(r"run_pretraining.py",line):
+                fields = get_fields(line)
+                # Checks if the PID == SPID, which corresponds to the first thread of the group
+                # There are mny threads (dif SPIDs) for each PID, we only keep track of the first
                 if fields[1] == fields[2]:
                     pid_names[fields[1]] = f"worker {num_worker}"
                     num_worker += 1

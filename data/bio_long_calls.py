@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Go through the bio trace and remove any long operations")
     p.add_argument("bio_trace", help="Time aligned bio trace")
-    p.add_argument("-t", "--threshold", type=int, help="Detection threshold in ns")
+    p.add_argument("-t", "--threshold", type=int, help="Detection threshold in ns (1s by default)")
     p.add_argument("-p", "--just-print", action='store_true', help="Only print out the long calls")
     p.add_argument("-o", "--old-trace", action='store_true', help="Process an old bio trace")
     args = p.parse_args()

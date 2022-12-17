@@ -71,11 +71,14 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
     outcsv.close()
 
 
-def get_date(gpu_trace):
+def get_date(raw_traces_dir):
     """
-    Returns the date of the traces in YYYY-MM-DD format 
+    Returns the date of the traces in YYYY-MM-DD format
+    Fetches it from the raw gpu trace as it will always contain it,
+    even if there was no GPU activity for this run (e.g. DLIO)
     """
-    infile = open(gpu_trace, "r")
+    gpu_trace_path = os.path.join(raw_traces_dir, "gpu.out")
+    infile = open(gpu_trace_path, "r")
     for line in infile:
         cols = " ".join(line.split()).replace("-", "0").split(" ")
         if cols[2] == "0":
@@ -148,7 +151,7 @@ def process_cpu_data(cpu_trace, current_date):
             # Make UTC timestamp from time and current date
             cols[0] = str(np.datetime64(str(current_date) + "T" + cols[0]) + np.timedelta64(UTC_TIME_DELTA, "h"))
         except:
-            print(f"error line {i}: current date: {current_date}")
+            raise Exception(f"error line {i}: current date: {current_date}")
             
         # Join the columns with commas and write to the CSV file
         outcsv.write(",".join(cols) + "\n")
@@ -159,25 +162,29 @@ def process_cpu_data(cpu_trace, current_date):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Outputs CSV files of average GPU and CPU use.")
-    p.add_argument("gpu_trace", help="The nvidia-smi GPU trace")
-    p.add_argument("cpu_trace", help="The mpstat CPU trace, containing only the lines for 'all'")
+    p.add_argument("raw_traces_dir", help="Directory of raw trace data")
+    p.add_argument("ta_traces_dir", help="Directory of time aligned traces")
     p.add_argument("num_gpus", type=int, help="The number of GPUs used for training")
     args = p.parse_args()
 
-    if not os.path.isfile(args.gpu_trace):
-        print(f"Invalid GPU trace file given")
+    if not os.path.isdir(args.raw_traces_dir):
+        print(f"Invalid raw traces directory given")
         exit(-1) 
 
-    if not os.path.isfile(args.cpu_trace):
-        print(f"Invalid CPU trace file given")
+    if not os.path.isdir(args.ta_traces_dir):
+        print(f"Invalid raw traces directory given")
         exit(-1) 
+
+    current_date = get_date(args.raw_traces_dir)
+
+    gpu_trace = os.path.join(args.ta_traces_dir, "gpu_data", "gpu.all")
+    cpu_trace = os.path.join(args.ta_traces_dir, "cpu_data", "cpu.all")
 
     print("Calculating average GPU usage")
-    calc_avg_gpu_usage(args.gpu_trace, args.num_gpus)
+    calc_avg_gpu_usage(gpu_trace, args.num_gpus)
 
     print("Processing CPU data")
-    current_date = get_date(args.gpu_trace)
-    process_cpu_data(args.cpu_trace, current_date)
+    process_cpu_data(cpu_trace, current_date)
 
     print("All done\n")
 
