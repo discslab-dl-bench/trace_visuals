@@ -67,7 +67,7 @@ echo -e "####################################################################"
 
 # For image segmentation plotting, we create this fake process 111111 and
 # merge all workers' activity ot it. To plot this, modifiy pids.json.
-if [[ "$workload_name" == "imseg" ]]
+if [[ "$workload_name" == "unet3d" ]]
 then
     cat $ta_outdir/traces_data/comb_* > $ta_outdir/traces_data/comb_111111
     sort -o $ta_outdir/traces_data/comb_111111 $ta_outdir/traces_data/comb_111111
@@ -81,6 +81,9 @@ echo -e "#####################################################################"
 ./gpu.sh $traces_dir/gpu.out $ta_outdir 
 ${py} cpu_gpu.py $traces_dir $ta_outdir $num_gpus
 
+if [ -f "${traces_dir}/iostat.json" ]; then
+    ${py} iostat_to_csv.py "${traces_dir}/iostat.json" $ta_outdir
+fi
 
 # different logging preprocess
 if [[ "$workload_name" == "dlio" ]]
@@ -101,8 +104,8 @@ else
     echo -e "mllog.sh, mllog_UNIX_to_UTC_ts.py: Extract events from app log"
     echo -e "####################################################################"
 
-    # For imseg, the log file has a different name than the workload
-    if [[ "$workload_name" == "imseg" ]]
+    # For unet3d, the log file has a different name than the workload
+    if [[ "$workload_name" == "unet3d" ]]
     then
         logfile="unet3d.log"
     else

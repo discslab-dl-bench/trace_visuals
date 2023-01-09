@@ -28,7 +28,7 @@ sed -i 's/{, /{/' $output_dir/u.log
 # Extract training timeline info 
 # The log will contain different events depending on the workload
 
-if [[ $workload == "imseg" ]]
+if [[ $workload == "unet3d" ]]
 then
     grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
 elif [[ $workload == "dlrm" ]]

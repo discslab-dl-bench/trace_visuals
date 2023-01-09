@@ -43,7 +43,10 @@ def main(data_dir, output_dir):
     # Identify the run method
     run_method = None
     for line in pids_trace:
-        if re.match(r'.*resource_tracker.*', line):
+        if re.match(r'.*launch.py.*', line):
+            run_method = "launch.py"
+            break
+        elif re.match(r'.*resource_tracker.*', line):
             run_method = "mp.spawn"
             break
         elif re.findall(r"mpirun",line):
@@ -153,12 +156,17 @@ def main(data_dir, output_dir):
         num_worker = 1
         for line in pids_trace:
             if re.match(r".*launch\.py.*", line):
-                fields = get_fields(line)
-                pid_names[fields[1]] = "master"
+                # We ignore the master process here since in practice it does not do much 
+                # and takes up space in the timeline plots for nothing!
+                continue
+                # fields = get_fields(line)
+                # pid_names[fields[1]] = "master"
 
             elif re.match(r".*\-u main\.py.*", line):
                 fields = get_fields(line)
-
+                # Keep only the line for the parent process
+                # i.e. the one whose thread id is equal to the pid
+                # (each process has many threads spawned)
                 if fields[1] == fields[2]:
                     pid_names[fields[1]] = f"worker {num_worker}"
                     num_worker += 1

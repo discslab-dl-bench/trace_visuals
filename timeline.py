@@ -1,5 +1,6 @@
 import json
 import os.path
+from os.path import isfile, join
 import pathlib
 import argparse
 import numpy as np
@@ -14,14 +15,13 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
 
     pid_names_file = os.path.join(data_dir, "pids.json")
 
-    if not os.path.isfile(pid_names_file):
+    if not isfile(pid_names_file):
         print(f"ERROR: Missing pids.json file in {data_dir}")
         exit(-1) 
 
     pid_names = open(pid_names_file, 'r')
     pid_names = json.load(pid_names)
     pids = list(pid_names.keys())
-
 
     bar_height = 1
     ymins = [0, 1, 2]
@@ -34,26 +34,39 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
         BIOW="red",
     )
 
+
+    # Check out how many rows we'll need
+    if isfile(join(data_dir, 'iostat.csv')):
+        total_rows = len(pids) + 5
+        plot_iostat = True
+        gridspec_kw={"height_ratios": [2.5] * 2 + [2] * 2 + [2.5] * len(pids) + [1]}
+    else:
+        total_rows = len(pids) + 3
+        plot_iostat = False
+        gridspec_kw={"height_ratios": [2.5] * (total_rows - 1) + [1]}
+
     extra_height = 4 if len(pids) == 1 else 1
 
+    # Configuring the aspect ratios
+
     if long:
-        figsize = (30, len(pids) * 3 + extra_height)
-        gridspec_kw={"height_ratios": [2.5] * (len(pids) + 2) + [1]}
+        figsize = (30, (total_rows -1) * 3 + extra_height)
     else:
-        figsize = (20, len(pids) * 3 + extra_height)
-        gridspec_kw={"height_ratios": [2.5] * (len(pids) + 2) + [1]}
+        figsize = (20, (total_rows -1) * 3 + extra_height)
+        
 
     fig, axs = plt.subplots(
-        nrows=len(pids) + 3,
+        nrows=total_rows,
         ncols=1,
         figsize=figsize,
         gridspec_kw=gridspec_kw, # 1 for timeline
         sharex=True,
     )
 
-    #
+    ############################################
     # Plot CPU
-    #
+    ############################################
+    
     df = pd.read_csv(
         os.path.join(data_dir, "cpu_data/cpu_all.csv"),
         sep=",",
@@ -64,7 +77,9 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     if end is not None:
         df = df[df["timestamp"] <= np.datetime64(end)]
 
-    ax = axs[0]
+    i_ax = 0
+
+    ax = axs[i_ax]
     ax.set_title("CPU Usage")
     ax.set_ylabel("Percent Use (%)")
 
@@ -90,9 +105,12 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     ax.set_ylim(ymin=0)
     ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")
 
-    #
+    ############################################
     # Plot GPU
-    #
+    ############################################
+
+    i_ax += 1
+    
     df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
@@ -101,7 +119,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     if end is not None:
         df = df[df["timestamp"] <= np.datetime64(end)]
 
-    ax1 = axs[1]
+    ax1 = axs[i_ax]
     ax1.set_title("GPU Usage")
     ax1.set_ylabel("Percent Use (%)")
 
@@ -145,8 +163,68 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     handles, labels = [(a + b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
     ax2.legend(handles, labels, loc='center left')
 
+
+    ############################################
+    # Plot iostat if present
+    ############################################
+
+    
+    if plot_iostat:
+
+        df = pd.read_csv(
+            join(data_dir, "iostat.csv"),
+            sep=",",
+        )
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+        if start is not None:
+            df = df[df["timestamp"] >= np.datetime64(start)]
+        if end is not None:
+            df = df[df["timestamp"] <= np.datetime64(end)]
+
+        colormap = {
+            "rMB/s": "blue", 
+            "wMB/s": "red"
+        }
+        variables = colormap.keys()
+        n_features = len(variables)
+
+
+        # import code
+        # code.interact(local=locals())
+
+        # Find max value of our variables for either disk and use it as ymax
+        # We'll use the same ymax for all disk plots to visually compare them
+        ymax = df[variables].max().max()
+
+        # One line per disk
+        for disk in df.disk_device.unique():
+
+            i_ax += 1
+            ax = axs[i_ax]
+
+            ax.set_title(f"{disk} disk usage")
+            ax.set_ylabel("Usage (MB/s)")
+
+            # Filter the data by disk
+            data = df[df["disk_device"] == disk] 
+
+            for i, var in enumerate(variables):
+                line = ax.plot(data["timestamp"], data[var], label=var, linewidth=1)
+                line[0].set_color(colormap[var])
+
+            ax.grid(True, which="both", linestyle="--", color="grey", alpha=0.2)
+            ax.tick_params(which="both", direction="in")
+
+            ax.set_ylim(ymin=0, ymax=ymax)
+            ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")
+
+
+    ############################################
     # Plot PIDs
-    #
+    ############################################
+    i_ax += 1
+
     for i, pid in enumerate(pids):
         print(f"Processing pid {pid}")
 
@@ -173,7 +251,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
             "R/W": (df["event"] == "READ") | (df["event"] == "WRITE"),
         }
 
-        ax = axs[i + 2]
+        ax = axs[i_ax + i]
         if pid in pid_names:
             ptitle = pid_names[pid] 
         else:
@@ -279,7 +357,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
             df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "INIT"]
         else:
             print("Pad with epoch")
-            if workload == "imseg":
+            if workload == "unet3d":
                 df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
             else:
                 df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "TRAINING"]
@@ -290,7 +368,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     ymins = [0]
 
     # Logical training events for each workload
-    if workload == "imseg":
+    if workload == "unet3d":
         colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid")
     elif workload == "dlrm":
         colors_dict = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
@@ -311,7 +389,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
         yrange = (ymin, bar_height)
         colors = [colors_dict[event] for event in df.event]
         # Plot vertical lines delimiting epoch starts
-        if workload == "imseg":
+        if workload == "unet3d":
             ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
         ax.broken_barh(xranges, yrange, facecolors=colors, alpha=0.8)
 
@@ -368,7 +446,7 @@ def get_plotting_ranges(data_dir, workload):
 
     init = df.iloc[0]
 
-    if workload == "imseg":
+    if workload == "unet3d":
         first_epoch = df[df["event"] == "EPOCH"].iloc[0]
         first_training = None
     else:
@@ -411,8 +489,8 @@ def get_plotting_ranges(data_dir, workload):
         "first_training": (np.datetime64(first_training.start_date) - td_5s, np.datetime64(first_training.end_date) + td_5s) if first_training is not None else None, 
         "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s) if first_epoch is not None else None, 
         "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
-        "last_2min": (np.datetime64(last_event.end_date) - td_2min, np.datetime64(last_event.end_date)),
-        "last_5s": (np.datetime64(last_event.end_date) - td_5s, np.datetime64(last_event.end_date)),
+        "last_2min": (np.datetime64(last_event.end_date) - td_2min, None),
+        "last_5s": (np.datetime64(last_event.end_date) - td_5s, None),
     }
 
     return interesting_time_ranges

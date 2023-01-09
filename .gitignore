@@ -2,6 +2,12 @@
 __pycache__/
 plots/
 
+BERT_*
+DLRM_*
+UNET3D_*
+
+train_times/
+
 data/8gpu_*
 data/8gpus_*
 data/4gpu_*
@@ -18,6 +24,7 @@ data/*_data/
 data/*_data_*/
 *.out
 *.log
+*.json
 data/writes/
 notes/
 ckpt_*
