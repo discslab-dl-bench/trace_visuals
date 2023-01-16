@@ -5,6 +5,7 @@ plots/
 BERT_*
 DLRM_*
 UNET3D_*
+UNET_*
 
 train_times/
 
