@@ -9,7 +9,7 @@ from matplotlib import dates as mdates, pyplot as plt, patches as mpatches, colo
 from pyrsistent import v
 
 
-def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, start=None, end=None, xformat="%H:%M", margin=np.timedelta64(5, "s"), filename=None, vlines=None):
+def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, start=None, end=None, xformat="%H:%M", margin=np.timedelta64(5, "s"), filename=None, vlines=None, plot_combined_workers=False):
 
     print(f"Generating plot {title}")
 
@@ -19,9 +19,16 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
         print(f"ERROR: Missing pids.json file in {data_dir}")
         exit(-1) 
 
-    pid_names = open(pid_names_file, 'r')
-    pid_names = json.load(pid_names)
-    pids = list(pid_names.keys())
+    # In the preprocessing we merge all the workers' data into a fake pid of 111111
+    if plot_combined_workers:
+        pid_names = {
+            "111111": "workers (combined)"
+        }
+        pids = ["111111"]
+    else:
+        pid_names = open(pid_names_file, 'r')
+        pid_names = json.load(pid_names)
+        pids = list(pid_names.keys())
 
     bar_height = 1
     ymins = [0, 1, 2]
@@ -39,7 +46,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     if isfile(join(data_dir, 'iostat.csv')):
         total_rows = len(pids) + 5
         plot_iostat = True
-        gridspec_kw={"height_ratios": [2.5] * 2 + [2] * 2 + [2.5] * len(pids) + [1]}
+        gridspec_kw={"height_ratios": [2.5] * 2 + [1.5] * 2 + [2.5] * len(pids) + [1]}
     else:
         total_rows = len(pids) + 3
         plot_iostat = False
@@ -369,7 +376,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
 
     # Logical training events for each workload
     if workload == "unet3d":
-        colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid")
+        colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
     elif workload == "dlrm":
         colors_dict = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
     else:   # E.g. BERT
@@ -436,7 +443,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
 
     print(f"Saving figure to plots/{filename}\n")
     # plt.tight_layout(pad=0.5, h_pad=0.5)
-    plt.savefig(f"./plots/{filename}", format="png", dpi=550)
+    plt.savefig(f"./plots/{filename}", format="png", dpi=500)
 
 
 
@@ -502,6 +509,7 @@ if __name__ == "__main__":
     p.add_argument("data_dir", help="Directory where the preprocessed traces are")
     p.add_argument("workload", help="Name of the workload")
     p.add_argument("experiment_name", help="Title of the plot")
+    p.add_argument("-a", "--all-plots", action="store_true", default=False, help="Generate all the default zooms into the timeline (first 5min, first epoch, etc.)")
     args = p.parse_args()
 
     if not os.path.isdir(args.data_dir):
@@ -529,23 +537,32 @@ if __name__ == "__main__":
         long=True,
     )
 
+    plot_pids_timeline_cpu_gpu(
+        args.data_dir,
+        args.workload,
+        title=args.experiment_name,
+        filename=f"timelines/{args.experiment_name}/{args.workload}_overview_combined.png",
+        long=True,
+        plot_combined_workers=True
+    )
 
-    # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
-    interesting_time_ranges = get_plotting_ranges(args.data_dir, args.workload)
+    if args.all_plots:
+        # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file
+        interesting_time_ranges = get_plotting_ranges(args.data_dir, args.workload)
 
-    for name, time_range in interesting_time_ranges.items():
-        if time_range is None:
-            continue
+        for name, time_range in interesting_time_ranges.items():
+            if time_range is None:
+                continue
 
-        plot_pids_timeline_cpu_gpu(
-            args.data_dir,
-            args.workload,
-            title = f"{args.experiment_name} - {name}",
-            name = name,
-            start = time_range[0],
-            end = time_range[1],
-            xformat = "%H:%M:%S",
-            margin = np.timedelta64(1, "s") if name != "init" else np.timedelta64(100, "ms"),
-            filename = f"timelines/{args.experiment_name}/{name}.png",
-        )
+            plot_pids_timeline_cpu_gpu(
+                args.data_dir,
+                args.workload,
+                title = f"{args.experiment_name} - {name}",
+                name = name,
+                start = time_range[0],
+                end = time_range[1],
+                xformat = "%H:%M:%S",
+                margin = np.timedelta64(1, "s") if name != "init" else np.timedelta64(100, "ms"),
+                filename = f"timelines/{args.experiment_name}/{name}.png",
+            )
 

@@ -4,7 +4,7 @@
 unameOut="$(uname -s)"
 case "${unameOut}" in
     MINGW*)     py=py;;
-    *)          py=python3;;
+    *)          py=/usr/bin/python3;;
 esac
 
 
@@ -57,6 +57,13 @@ while read pid; do
     ${py} ts_to_start_end.py $outfile
 
 done < $outdir/pids
+
+# Create a fake process with the combined data of all processes
+cat $outdir/traces_data/comb_* > $outdir/traces_data/comb_111111
+sort -o $outdir/traces_data/comb_111111 $outdir/traces_data/comb_111111
+
+${py} ts_to_start_end.py $outdir/traces_data/comb_111111
+
 
 # Cleanup
 rm $outdir/bio_tmp $outdir/open_tmp $outdir/read_tmp $outdir/write_tmp

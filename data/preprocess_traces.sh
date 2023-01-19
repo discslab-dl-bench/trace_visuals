@@ -6,7 +6,7 @@
 unameOut="$(uname -s)"
 case "${unameOut}" in
     MINGW*)     py=py;;
-    *)          py=python3;;
+    *)          py=/usr/bin/python3.8;;
 esac
 
 if [ $# -lt 3 ]
@@ -65,13 +65,6 @@ echo -e "####################################################################"
 # Extract timeline information and transform data for timeline plotting
 ./prepare_traces_for_timelines.sh $ta_outdir
 
-# For image segmentation plotting, we create this fake process 111111 and
-# merge all workers' activity ot it. To plot this, modifiy pids.json.
-if [[ "$workload_name" == "unet3d" ]]
-then
-    cat $ta_outdir/traces_data/comb_* > $ta_outdir/traces_data/comb_111111
-    sort -o $ta_outdir/traces_data/comb_111111 $ta_outdir/traces_data/comb_111111
-fi
 
 echo -e "#####################################################################"
 echo -e "cpu.sh, gpu.sh, cpu_gpu.py: Preparing CPU and GPU traces for plotting"

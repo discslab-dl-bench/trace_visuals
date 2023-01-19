@@ -7,7 +7,7 @@ import argparse
 # We are in eastern time, so UTC-4 during DST and UTC-5 otherwise
 UTC_TIME_DELTA = 5
 
-MAX_ERR_COUNT = 450
+MAX_ERR_COUNT = 1500
 
 # Add any new trace we want to time align here
 # We don't care about close, create_del for plotting (for now)

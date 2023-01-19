@@ -30,24 +30,24 @@ sed -i 's/{, /{/' $output_dir/u.log
 
 if [[ $workload == "unet3d" ]]
 then
-    grep -Ea "init_start|init_stop|run_start|run_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+    grep -Ea "init_start|init_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
 elif [[ $workload == "dlrm" ]]
 then
-    grep -Ea "init_start|init_stop|run_start|run_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+    grep -Ea "init_start|init_stop|block_start|block_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
 elif [[ $workload == "bert" ]]
 then
-    grep -Ea "init_start|init_stop|run_start|run_stop|block_start|block_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
+    grep -Ea "init_start|init_stop|block_start|block_stop|checkpoint_start|checkpoint_stop" $output_dir/u.log > $output_dir/timeline.log
 else
     echo "Unknown workload $workload"
     exit
 fi
 
-sed -i '$ d' $output_dir/timeline.log
+# sed -i '$ d' $output_dir/timeline.log
 
 awk 'BEGIN { print "[" } { print $0"," }' $output_dir/timeline.log > tmp && mv tmp $output_dir/timeline.log
 # Remove last comma, make valid JSON array
 sed -i '$ s/.$/\n]/' $output_dir/timeline.log
 
-rm $output_dir/u.log
+# rm $output_dir/u.log
 
 echo -e "All done\n"
