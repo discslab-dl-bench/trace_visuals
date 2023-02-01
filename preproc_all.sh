@@ -1,8 +1,8 @@
 #!/bin/bash
 
 declare -a num_gpus=(4 8)
-declare -a batch_sizes=(4 6)
-declare -a methods=("horovod" "normal")
+declare -a batch_sizes=(6)
+declare -a methods=("horovod")
 
 for num_gpu in "${num_gpus[@]}"
 do  
@@ -11,7 +11,7 @@ do
         for method in "${methods[@]}"
         do
             pushd data
-            experiment_name="BERT_${method}_${num_gpu}gpu_${batch_size}b_1200steps"
+            experiment_name="BERT_${method}_${num_gpus}gpu_${batch_size}b_1200steps"
 
             ./preprocess_traces.sh $experiment_name $num_gpu bert
 
@@ -20,6 +20,7 @@ do
         done
     done
 done
+
 
 
 # declare -a num_gpus=(2 4 6 8)

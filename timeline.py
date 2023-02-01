@@ -44,9 +44,11 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
 
     # Check out how many rows we'll need
     if isfile(join(data_dir, 'iostat.csv')):
-        total_rows = len(pids) + 5
+        # total_rows = len(pids) + 5
+        total_rows = len(pids) + 4
         plot_iostat = True
-        gridspec_kw={"height_ratios": [2.5] * 2 + [1.5] * 2 + [2.5] * len(pids) + [1]}
+        # gridspec_kw={"height_ratios": [2.5] * 2 + [1.5] * 2 + [2.5] * len(pids) + [1]}
+        gridspec_kw={"height_ratios": [1.5] * 2 + [1.5] * 1 + [2.5] * len(pids) + [1]}
     else:
         total_rows = len(pids) + 3
         plot_iostat = False
@@ -175,7 +177,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     # Plot iostat if present
     ############################################
 
-    
     if plot_iostat:
 
         df = pd.read_csv(
@@ -185,7 +186,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
         df["timestamp"] = pd.to_datetime(df["timestamp"])
 
         if start is not None:
-            df = df[df["timestamp"] >= np.datetime64(start)]
+            df = df[df["timestamp"] >= np.datetime64(start)]    
         if end is not None:
             df = df[df["timestamp"] <= np.datetime64(end)]
 
@@ -204,27 +205,44 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
         # We'll use the same ymax for all disk plots to visually compare them
         ymax = df[variables].max().max()
 
-        # One line per disk
-        for disk in df.disk_device.unique():
 
-            i_ax += 1
-            ax = axs[i_ax]
+        # # One line per disk
+        # for disk in df.disk_device.unique():
+            # i_ax += 1
+            # ax = axs[i_ax]
 
-            ax.set_title(f"{disk} disk usage")
-            ax.set_ylabel("Usage (MB/s)")
+        #     ax.set_title(f"Disk Usage (iostat)")
+        #     ax.set_ylabel("Usage (MB/s)")
 
-            # Filter the data by disk
-            data = df[df["disk_device"] == disk] 
+        #     # Filter the data by disk
+        #     data = df[df["disk_device"] == disk] 
 
-            for i, var in enumerate(variables):
-                line = ax.plot(data["timestamp"], data[var], label=var, linewidth=1)
-                line[0].set_color(colormap[var])
+        #     for i, var in enumerate(variables):
+        #         line = ax.plot(data["timestamp"], data[var], label=var, linewidth=1)
+        #         line[0].set_color(colormap[var])
 
-            ax.grid(True, which="both", linestyle="--", color="grey", alpha=0.2)
-            ax.tick_params(which="both", direction="in")
+        #     ax.grid(True, which="both", linestyle="--", color="grey", alpha=0.2)
+        #     ax.tick_params(which="both", direction="in")
 
-            ax.set_ylim(ymin=0, ymax=ymax)
-            ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")
+        #     ax.set_ylim(ymin=0, ymax=ymax)
+        #     ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")
+
+        # Combine disk data
+        i_ax += 1
+        ax = axs[i_ax]
+        ax.set_title(f"Disk Usage (iostat)")
+        ax.set_ylabel("Usage (MB/s)")
+
+        df2 = df.groupby('timestamp').sum()
+        for i, var in enumerate(variables):
+            line = ax.plot(df2.index, df2[var], label=var, linewidth=1)
+            line[0].set_color(colormap[var])
+
+        ax.grid(True, which="both", linestyle="--", color="grey", alpha=0.2)
+        ax.tick_params(which="both", direction="in")
+
+        ax.set_ylim(ymin=0, ymax=ymax)
+        ax.legend(bbox_to_anchor=(1, 0.5), loc="center left")
 
 
     ############################################
@@ -430,7 +448,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     ax.grid(True, axis="x", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
     ax.tick_params(axis="x", which="both", direction="out", rotation=30)
 
-    fig.suptitle(title)
+    # fig.suptitle(title)
 
     if filename is not None:
         filename = filename
@@ -442,8 +460,344 @@ def plot_pids_timeline_cpu_gpu(data_dir, workload, title, long=True, name=None, 
     pathlib.Path(os.path.join("./plots/", output_dir)).mkdir(parents=True, exist_ok=True)
 
     print(f"Saving figure to plots/{filename}\n")
-    # plt.tight_layout(pad=0.5, h_pad=0.5)
+    plt.tight_layout(pad=0.5, h_pad=0.5)
     plt.savefig(f"./plots/{filename}", format="png", dpi=500)
+
+
+
+def plot_timeline_for_paper(data_dir, workload, title, long=True, name=None, start=None, end=None, xformat="%H:%M", margin=np.timedelta64(5, "s"), filename=None, vlines=None):
+    """
+    For the paper plots, we'll noly plot the GPU info, the combined worker activity and the timeline
+    """
+    print(f"Generating plot {title}")
+
+    pid_names_file = os.path.join(data_dir, "pids.json")
+
+    if not isfile(pid_names_file):
+        print(f"ERROR: Missing pids.json file in {data_dir}")
+        exit(-1) 
+
+    # Always plot the combined
+    pid_names = {
+        "111111": "Workers"
+    }
+    pids = ["111111"]
+
+    bar_height = 1
+    ymins = [0, 1, 2]
+    categories = ["BIO", "R/W", "OPEN"]
+    colors_dict = dict(
+        OPENAT="purple",
+        READ="dodgerblue",
+        WRITE="red",
+        BIOR="blue",
+        BIOW="red",
+    )
+
+    fontsize = 16
+
+    total_rows = len(pids) + 2
+    gridspec_kw={"height_ratios": [1.5] * (total_rows - 1) + [0.5]}
+
+    extra_height = 4 if len(pids) == 1 else 1
+
+    # Configuring the aspect ratios
+
+    if long:
+        figsize = (30, (total_rows -1) * 1.5 + extra_height)
+    else:
+        figsize = (20, (total_rows -1) * 3 + extra_height)
+        
+    fig, axs = plt.subplots(
+        nrows=total_rows,
+        ncols=1,
+        figsize=figsize,
+        gridspec_kw=gridspec_kw, # 1 for timeline
+        sharex=True,
+    )
+
+    ############################################
+    # Plot GPU
+    ############################################
+
+    i_ax = 0
+    
+    df = pd.read_csv(os.path.join(data_dir, "gpu_data/gpu_avg.csv"), sep=",", on_bad_lines='skip') # add additional argument on_bad_lines='skip' to plot
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    if start is not None:
+        df = df[df["timestamp"] >= np.datetime64(start)]
+    if end is not None:
+        df = df[df["timestamp"] <= np.datetime64(end)]
+
+    ax1 = axs[i_ax]
+    ax1.set_title("GPU Usage", fontsize=fontsize+2)
+    ax1.set_ylabel("Usage (%)", fontsize=fontsize)
+
+    ax1.plot(
+        df["timestamp"],
+        df["sm"],
+        label="GPU MultiProcessor Use (%)",
+        color="tab:red",
+        linewidth=2,
+        markersize=5,
+    )
+    ax1.plot(
+        df["timestamp"],
+        df["mem"],
+        label="GPU Memory Use (%)",
+        color="tab:orange",
+        linewidth=2,
+        markersize=5,
+    )
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    ax2.set_ylabel("Size (MB)", fontsize=fontsize)
+    ax2.plot(
+        df["timestamp"],
+        df["fb"],
+        label="Framebuffer Memory Use (MB)",
+        color="tab:blue",
+        linewidth=2,
+        markersize=5,
+        rasterized=True
+    )
+
+    ax1.grid(True, which="both", linestyle="--")
+    ax1.tick_params(which="both", direction="in", grid_color="grey", grid_alpha=0.3, labelsize=fontsize)
+    ax2.tick_params(labelsize=fontsize)
+
+    ax1.set_ylim(ymin=0, ymax=100)
+    ax2.set_ylim(ymin=0)
+
+    # This will combine the GPU %mp, %mem and FBmem legends  
+    handles, labels = [(a + b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
+    ax2.legend(handles, labels, loc='center right', fontsize=fontsize)
+
+
+
+    ############################################
+    # Plot PIDs
+    ############################################
+    i_ax += 1
+
+    for i, pid in enumerate(pids):
+        print(f"Processing pid {pid}")
+
+        df = pd.read_csv(
+            os.path.join(data_dir, f"st_end_data/st_end_data_{pid}"), names=["start_date", "end_date", "event"]
+        )
+        df = df[["start_date", "end_date", "event"]]
+        df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
+        df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+        if start is not None:
+            df = df[df["start_date"] >= np.datetime64(start)]
+        if end is not None:
+            df = df[df["end_date"] <= np.datetime64(end)]
+
+        # If the DataFrame is empty after filtering, skip
+        if len(df) == 0:
+            print(f"This timerange is empty for pid {pid}. Skipping.")
+            continue
+
+        # Can't define this earlier
+        masks = {
+            "BIO": (df["event"] == "BIOR") | (df["event"] == "BIOW"),
+            "OPEN": (df["event"] == "OPENAT") ,
+            "R/W": (df["event"] == "READ") | (df["event"] == "WRITE"),
+        }
+
+        ax = axs[i_ax + i]
+        if pid in pid_names:
+            ptitle = pid_names[pid] 
+        else:
+            ptitle = pid
+
+        ax.set_title(f"{ptitle}", fontsize=fontsize+2)
+
+        # Plot the events
+        for j, category in enumerate(categories):
+            mask = masks[category]
+            start_dates = mdates.date2num(df.loc[mask].start_date)
+            end_dates = mdates.date2num(df.loc[mask].end_date)
+            durations = end_dates - start_dates
+            xranges = list(zip(start_dates, durations))
+            ymin = ymins[j] - 0.5
+            yrange = (ymin, bar_height)
+            colors = [colors_dict[event] for event in df.loc[mask].event]
+            ax.broken_barh(xranges, yrange, facecolors=colors, alpha=1)
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+        ax.grid(True, axis="both", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
+        ax.tick_params(which="both", direction="in", labelsize=fontsize)
+
+        # Format the y-ticks
+        ax.set_yticks(range(len(categories)))
+        ax.set_yticklabels(categories)
+
+        # Add the legend
+        if (len(pids) > 1 and i == len(pids) // 2) or (len(pids) == 1 and i == 0):
+            patches = [
+                mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()
+            ]
+            ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
+
+    # Set the x axis limits
+    # We do this here so that we create a margin around the trace data min/max vs. the timeline
+    # data which we care less about. This makes the start/end setting work more as expected.
+    if margin is None:
+        margin = np.timedelta64(1, "s")
+
+    # Sometimes the range we try to plot contains nothing so the limits are NaT
+    # and the program throws a value error "Axis limits cannot be NaN or Inf"
+    # embed()
+    try:
+        ax.set_xlim(
+            df.start_date.min() - margin,
+            df.end_date.max() + margin,
+        )
+    except Exception as e:
+        print(f"Exception caught while trying to set graph limits: {e}")
+        print("Skipping this graph.")
+        return
+    #
+    # Plot the timeline
+    #
+    print(f"Processing timeline")
+
+    df = pd.read_csv(os.path.join(data_dir, "mllog_data/timeline.csv"), names=["start_date", "end_date", "event"])
+
+    df = df[["start_date", "end_date", "event"]]
+    df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
+    df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+
+    if start is not None:
+        print(f"Filtering with start date >= {start}")
+        df = df[df["start_date"] >= np.datetime64(start)]
+        print(df.head())
+    if end is not None:
+        print(f"Filtering with end date <= {end}")
+        df = df[df["end_date"] <= np.datetime64(end)]
+        print(df.head())
+
+    # Add synthetic data to show timeline info when no data point is included in the desired range
+    # Uncomment/modify according to needs
+
+    # if df.shape[0] == 0:
+    #     print("empty will create default data")
+    #     df.loc[-1] = [ np.datetime64(start),  np.datetime64(end), "EPOCH"]
+    # # elif df.shape[0] == 1:
+
+    # if title == "MLCommons Image Segmentation - 4 GPUs 1xRAM dataset - Naive Copy First 5 Min":
+    #     init_period = df.iloc[0]
+    #     print("pad end with epoch")
+    #     df.loc[-1] = [ init_period["end_date"],  np.datetime64(end), "EPOCH"]
+    #     print(df)
+    #     print(df.shape)
+    # elif title == "MLCommons Image Segmentation - 4 GPUs 1xRAM dataset - First Eval":
+    #     print("Pad training with epochs")
+    #     eval_period = df.iloc[0]
+    #     eval_start = eval_period["start_date"] - np.timedelta64(1, "us")
+    #     df.loc[-1] = [ np.datetime64(start),  eval_start, "EPOCH"]
+    #     eval_stop = eval_period["end_date"] + np.timedelta64(1, "us")
+    #     df.loc[-2] = [ eval_stop,  np.datetime64(end), "EPOCH"]
+    #     print(df)
+    #     print(df.shape)
+    # else:
+    if df.shape[0] == 0:
+        if name == 'first_30s' or name == 'init':
+            print("Pad with init")
+            df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "INIT"]
+        else:
+            print("Pad with epoch")
+            if workload == "unet3d":
+                df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "EPOCH"]
+            else:
+                df.loc[-1] = [np.datetime64(start),  np.datetime64(end), "TRAINING"]
+
+
+    categories = ["Timeline"]
+
+    ymins = [0]
+
+    # Logical training events for each workload
+    if workload == "unet3d":
+        colors_dict = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+    elif workload == "dlrm":
+        colors_dict = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
+    else:   # E.g. BERT
+        colors_dict = dict(INIT="blue", TRAINING="gold", CHECKPOINT="mediumvioletred")
+    # TODO DLIO?
+
+    # Select the last axes
+    ax = axs[-1]
+
+    # Plot the events
+    for i, _ in enumerate(categories):
+        start_dates = mdates.date2num(df.start_date)
+        end_dates = mdates.date2num(df.end_date)
+        durations = end_dates - start_dates
+        xranges = list(zip(start_dates, durations))
+        ymin = ymins[i] - 0.5
+        yrange = (ymin, bar_height)
+        colors = [colors_dict[event] for event in df.event]
+        # Plot vertical lines delimiting epoch starts
+        if workload == "unet3d":
+            ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
+        ax.broken_barh(xranges, yrange, facecolors=colors, alpha=0.8)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    # Plot vertical lines 
+    # vlines format is a dictionary of label -> time
+    if vlines:
+        for label, xpos in vlines.items():
+            if start is not None and end is not None:
+                if xpos > start and xpos < end:
+                    ax.axvline(x=xpos, linewidth=0.7)
+                    ax.annotate(text=label, xy=(xpos, 0), xytext =(xpos,0.8), fontsize=8, rotation=45)
+            else:
+                ax.axvline(x=xpos, linewidth=0.7)
+                ax.annotate(text=label, xy=(xpos, 0), xytext =(xpos,0.8), fontsize=8, rotation=45)
+
+    # Add the legend
+    patches = [mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()]
+    ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
+
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=100))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter(xformat))
+
+    # Format the y-ticks
+    # ax.set_yticks(range(len(categories)))
+    ax.get_yaxis().set_visible(False)
+
+    ax.set_title("Timeline", fontsize=fontsize+2)
+
+    ax.grid(True, axis="x", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
+    ax.tick_params(axis="x", which="both", direction="out", rotation=30, labelsize=fontsize)
+
+    # fig.suptitle(title)
+
+    if filename is not None:
+        filename = filename
+    else:
+        filename = "timelines/cpu_gpu_timeline"
+    
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(filename)
+    pathlib.Path(os.path.join("./paper_plots/", output_dir)).mkdir(parents=True, exist_ok=True)
+
+    print(f"Saving figure to plots/{filename}\n")
+    plt.tight_layout(pad=0.5, h_pad=0.5)
+    plt.savefig(f"./paper_plots/{filename}", format="png", dpi=300)
+
+
 
 
 
@@ -529,6 +883,15 @@ if __name__ == "__main__":
     #     "day_5": np.datetime64("2022-09-29T20:33:37.386817568"),
     # }
 
+    # plot_timeline_for_paper(
+    #     args.data_dir,
+    #     args.workload,
+    #     title=args.experiment_name,
+    #     filename=f"timelines/{args.experiment_name}/{args.experiment_name}.png",
+    #     long=True,
+    # )
+
+
     plot_pids_timeline_cpu_gpu(
         args.data_dir,
         args.workload,
@@ -545,6 +908,7 @@ if __name__ == "__main__":
         long=True,
         plot_combined_workers=True
     )
+    exit()
 
     if args.all_plots:
         # Extract times of first epoch, first eval, first 5 min and last 5 minutes from the mllog file

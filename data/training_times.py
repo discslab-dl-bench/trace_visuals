@@ -14,16 +14,17 @@ from matplotlib.ticker import MaxNLocator
 
 # For UNET3D
 metrics_pretty_names = {
-    "step_end": "Overall step",
     "load_batch_mem": "1-Batch loaded in memory",
-    "sample_load": "1.1-Sample loaded",
-    "sample_preproc": "1.2-Sample preprocessed",
+    # "sample_load": "1.1-Sample loaded",
+    # "sample_preproc": "1.2-Sample preprocessed",
     "load_batch_gpu": "2-Batch loaded to GPU",
     "model_forward_pass": "3-Forward pass",
     "loss_tensor_calc": "4-Loss calculation",
     "model_backward_pass": "5-Backward pass",
     "model_optim_step": "6-Optimizer step",
     "cum_loss_fn_calc": "7-Cumulative loss",
+    "step_end": "Overall step",
+    "all_compute": "8-Computation Only"
 }
 
 eval_metrics_pretty_names = {
@@ -38,13 +39,19 @@ durations = { metric: [] for metric in metrics_pretty_names }
 eval_durations = { metric: [] for metric in eval_metrics_pretty_names }
 
 WORKLOAD = "UNET"
-GPUs_int = [2,4,6,8]
+GPUs_int = [1, 2, 4, 6, 8]
+# GPUs_int = [1, 8]
 batches_int = [1, 2, 3, 4, 5]
 GPUs_str = [str(g) for g in GPUs_int]
 batches_str = [ str(b) for b in batches_int ]
-PATTERN=f'.*_instrumented\.json'
+
+# PATTERN=f'.*_ins_nostep7\.json'
+# SUFFIX=f'_ins_nostep7.json'
+
+PATTERN=f'.*_ins_original\.json'
+SUFFIX=f'_ins_original.json'
 NUM_EPOCHS = 10
-NUM_EVALS = 3
+NUM_EVALS = 0
 
 
 
@@ -79,7 +86,8 @@ NUM_EVALS = 3
 
 def export_per_epoch_stats(data_dir):
 
-    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data')) if re.match(PATTERN, f)]
+    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data'))]
+    log_files.sort()
 
     for log_file in log_files:
         print(f"Processing {log_file}")
@@ -116,7 +124,7 @@ def export_per_epoch_stats(data_dir):
                     "stdev": int(stats.pstdev(data[metric])),
                 }
         # Gets a prettier name from the log file name
-        outfile_base = os.path.basename(log_file).replace("_instrumented", "").replace(".json", "")
+        outfile_base = os.path.basename(log_file).replace(".json", "")
 
         # Create output directory if it doesn't exist
         pathlib.Path(os.path.join(data_dir, "per_epoch")).mkdir(parents=True, exist_ok=True)
@@ -128,11 +136,281 @@ def export_per_epoch_stats(data_dir):
         json.dump(per_epoch_durations, open(os.path.join(data_dir, "per_epoch", outfile_durations), mode="w"), indent=4)
         
 
+
+def sanity_check(data_dir, out_dir):
+    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data')) if re.match(PATTERN, f)]
+    log_files.sort()
+
+    print(f"{'Metric':>30}\t{'Mean':>15}\t{'Median':>15}\t{'Std':>15}\t{'1st quartile':>15}\t{'3rd quart':>15}")
+
+    for log_file in log_files:
+        print(f"{log_file}")
+
+        # all_times = copy.deepcopy(durations)
+
+        all_times = {
+            "step_end": [],
+            "sum_others": [],
+            "all_compute": [],
+            "diffs": [],
+        }
+
+        infile = open(log_file, mode='r')
+        log = json.load(infile)
+        infile.close()
+
+        # Gather all durations for each epoch in a log file
+        sum_others = 0
+        all_compute = 0
+
+        for line in log:
+            if line['key'] == "epoch_start":
+                epoch = line['metadata']['epoch_num']
+                if epoch == 1 or epoch == "1":
+                    continue
+
+            if line['key'] in durations.keys():
+                # Append value to appropriate array
+                value = round(line['value']['duration'] / 1_000_000_000, 3)
+
+                if line['key'] == 'sample_load' or line['key'] =='sample_preproc':
+                    continue
+
+                if line['key'] == 'step_end':
+                    sum_others = round(sum_others, 3)
+                    all_times['step_end'].append(value)
+                    all_times['sum_others'].append(sum_others)
+                    all_times['all_compute'].append(all_compute)
+                    # print(f"step: {value}\tsum: {sum_others}\tdiff: {round(value - sum_others, 3)}") 
+                    # Reset values
+                    sum_others = 0
+                    all_compute = 0
+                else:
+                    # print(line['key'])
+                    sum_others += value
+                    if line['key'] != 'load_batch_mem' and line['key'] != 'load_batch_gpu':
+                        all_compute += value
+            
+        all_times['diffs'] = np.asarray(all_times['step_end']) - np.asarray(all_times['sum_others'])
+        all_times['diffs'] = all_times['diffs'].tolist()
+        
+        import statistics
+
+        for key in all_times:
+            avg = round(statistics.mean(all_times[key]), 4)
+            median = round(statistics.median(all_times[key]), 4)
+            std = round(statistics.stdev(all_times[key]), 4)
+            quantiles = statistics.quantiles(all_times[key])
+
+            print(f"{key:>30}:\t{avg:>15}\t{median:>15}\t{std:>15}\t{round(quantiles[0], 4):>15}\t{round(quantiles[2], 4):>15}")
+
+        outfile_base = os.path.basename(log_file).replace(SUFFIX, "").replace(".json", "")
+        # Create output directory if it doesn't exist
+        pathlib.Path(os.path.join(data_dir, out_dir, "sanity_check")).mkdir(parents=True, exist_ok=True)
+        outfile_all_times = outfile_base + "all_times.json"
+        json.dump(all_times, open(os.path.join(data_dir, out_dir, "sanity_check", outfile_all_times), mode="w"), indent=4)
+
+
+def plot_from_raw(data_dir, detail=None):
+    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data'))]
+    log_files.sort()
+
+    all_metrics = copy.deepcopy(durations)
+    all_metrics["sum_computation"] = []
+    all_metrics["step_summed"] = []
+    all_metrics["sum_loading"] = []
+    all_metrics['sum_all_compute_and_load_gpu'] = []
+    all_metrics['diff_step_vs_summed'] = []
+
+    # DS for plotting data
+    plotting_data = {}
+    for num_GPU in GPUs_int:
+        plotting_data[num_GPU] = {
+            batch_num: copy.deepcopy(all_metrics) for batch_num in batches_int
+        }
+    
+    with open(os.path.join(data_dir, "step_analysis.txt"), "w") as outfile:
+
+        outfile.write(f"{'Metric':>30}\t{'Mean':>15}\t{'Median':>15}\t{'Std':>15}\t{'1st quartile':>15}\t{'3rd quart':>15}\n")
+
+        for log_file in log_files:
+            outfile.write(f"{log_file}\n")
+            gpu_key = get_num_gpus(log_file)
+            batch_key = get_batch_size(log_file)
+
+            all_times = copy.deepcopy(all_metrics)
+
+            infile = open(log_file, mode='r')
+            log = json.load(infile)
+            infile.close()
+
+            # Gather all durations for each epoch in a log file
+            step_summed = sum_computation = sample_load = sample_preproc = 0
+            sum_all_compute_and_load_gpu = sum_loading = 0
+
+            for line in log:
+                if line['key'] == "epoch_start":
+                    epoch = line['metadata']['epoch_num']
+                    if epoch == 1 or epoch == "1":
+                        continue
+
+                if line['key'] in durations.keys():
+                    # Append value to appropriate array
+                    # value = round(line['value']['duration'] / 1_000_000_000, 3)
+                    value = round(line['value']['duration'], 4)
+
+                    if line['key'] == 'sample_load':
+                        sample_load += value
+                        continue
+                    if line['key'] =='sample_preproc':
+                        sample_preproc += value
+                        continue
+
+                    if line['key'] == 'step_end':
+                        # sum_others = round(sum_others, 3)
+                        all_times['step_end'].append(value)
+                        all_times['sum_computation'].append(sum_computation)
+                        all_times['sum_all_compute_and_load_gpu'].append(sum_all_compute_and_load_gpu)
+
+                        if "sample_load" in all_metrics and "sample_preproc" in all_metrics:
+                            all_times['sample_load'].append(sample_load)
+                            all_times['sample_preproc'].append(sample_preproc)
+
+                        all_times['step_summed'].append(step_summed)
+                        all_times['sum_loading'].append(sum_loading)
+
+                        # print(f"step: {value}\tsum: {sum_others}\tdiff: {round(value - sum_others, 3)}") 
+                        # Reset values
+                        step_summed = sum_computation = sample_load = sample_preproc = sum_loading = 0
+                        sum_all_compute_and_load_gpu = 0
+                    else:
+                        all_times[line['key']].append(value)
+
+                        if line['key'] != 'all_compute':
+                            step_summed += value
+
+                            if line['key'] != 'load_batch_mem':
+                                sum_computation += value
+
+                        if line['key'] == 'load_batch_mem' or line['key'] == 'load_batch_gpu':
+                            sum_loading += value
+
+                        if line['key'] == 'load_batch_gpu' or line['key'] == 'all_compute':
+                            sum_all_compute_and_load_gpu += value
+
+
+                
+            all_times['diff_step_vs_summed'] = np.asarray(all_times['step_end']) - np.asarray(all_times['step_summed'])
+            all_times['diff_step_vs_summed'] = all_times['diff_step_vs_summed'].tolist()
+            
+            for key in all_times:
+                mean = stats.mean(all_times[key])
+                median = stats.median(all_times[key])
+                std = stats.stdev(all_times[key])
+                quartiles = stats.quantiles(all_times[key])
+
+                plotting_data[gpu_key][batch_key][key] = {
+                    'mean': mean,
+                    'median': median,
+                    'std': std,
+                    'q1': quartiles[0],
+                    'q3': quartiles[2],
+                }
+                ROUND = 4
+                outfile.write(f"{key:>30}:\t{round(mean, ROUND):>15}\t{round(median, ROUND):>15}\t{round(std, ROUND):>15}\t{round(quartiles[0], ROUND):>15}\t{round(quartiles[2], ROUND):>15}\n")
+
+    print("Plotting step breakdown from raw data for epochs > 1")
+
+
+    ###############################################################
+    # Modify metrics, gpus or batch sizes to plot here
+    ###############################################################
+
+
+    metrics_to_plot_pretty_names = {
+        "step_end": "Overall step",
+        # "sample_load": "1.1-Batch load",
+        # "sample_preproc": "1.2-Sample Preproc (CPU)",
+        "load_batch_mem": "1-Batch Loading",
+        "sum_computation": "2-Batch Processing",
+        # "sum_all_compute_and_load_gpu": "2-(sum all_comp and load gpu)",
+        # "all_compute": "2.0-Compute only",
+        "load_batch_gpu": "2.1-Batch to GPU",
+        "model_forward_pass": "2.2-Forward pass",
+        "loss_tensor_calc": "2.3-Loss calc",
+        "model_backward_pass": "2.4-Backward pass",
+        "model_optim_step": "2.5-Optimizer step",
+        "cum_loss_fn_calc": "2.6-Cumulative loss",
+    }
+    metrics_to_plot = { metric: [] for metric in metrics_to_plot_pretty_names }
+
+    GPUs_to_plot = GPUs_int
+    batches_to_plot = batches_int
+    batches_to_plot_str = [str(b) for b in batches_to_plot]
+
+
+    # Overall plot
+    fig, axes = plt.subplots(nrows=1, ncols=len(metrics_to_plot.keys()), layout="constrained", figsize=(3.1 * len(metrics_to_plot.keys()), 8), sharey=True)
+    fig.suptitle(f"{WORKLOAD}{' ' + detail + ' ' if detail else ' '}Step Breakdown (epoch > 1)")
+
+    i_ax = -1
+    for metric in metrics_to_plot.keys():
+        i_ax += 1
+        ax = axes[i_ax]
+        ax.set_title(metrics_to_plot_pretty_names[metric])
+
+
+        # plot the metric in the axes
+        for gpu_key in GPUs_to_plot:
+            x = np.asarray(batches_int)
+
+            y = [ plotting_data[gpu_key][batch][metric]["median"] for batch in batches_to_plot ]
+            y = np.asarray(y)
+
+            # std = [ overall_means[gpu_key][batch][metric]["stdev"] for batch in batches_str2]
+            # std = np.asarray(std)
+
+            q1 = [ plotting_data[gpu_key][batch][metric]["q1"] for batch in batches_to_plot ]
+            q1 = np.asarray(q1)
+
+            q3 = [ plotting_data[gpu_key][batch][metric]["q3"] for batch in batches_to_plot ]
+            q3 = np.asarray(q3)
+            
+            ax.plot(x, y, label=f"{gpu_key} GPUs")
+
+            ax.fill_between(x, q1, q3, alpha=0.1)
+
+            # ax.set_xscale('log', base=2)
+            # for large batch sizes
+            if len(batches_to_plot_str[0]) > 3:
+                ax.set_xticks(batches_to_plot, batches_to_plot_str, rotation=-45, ha='center', fontsize=7)
+                # ax.tick_params(axis='x', labelrotation=45)
+
+            # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.grid(True, axis="both", linestyle="--", linewidth=0.45, alpha=0.4, color="grey")
+            ax.set_xlabel("Batch size", fontsize=10)
+            ax.set_ylabel("Time taken (s)", fontsize=10)
+            ax.legend()
+
+    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "step_breakdown")
+    # Create output directory if it doesn't exist
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    filename = f"{WORKLOAD}{'_' + detail if detail else ''}_epoch_breakdown_raw.png"
+    figure_filename = os.path.join(output_dir, filename)
+
+    plt.savefig(figure_filename, format="png", dpi=450)
+    # Clear the current axes.
+    plt.cla() 
+    # Closes all the figure windows.
+    plt.close('all')   
+    plt.close(fig)
+
+
+
 def export_per_eval_stats(data_dir):
     print("Exporting per eval stats")
-    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data')) if re.match(PATTERN, f)]
-
-    print(log_files)
+    log_files = [os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data'))]
 
     for log_file in log_files:
         print(f"Processing {log_file}")
@@ -161,11 +439,11 @@ def export_per_eval_stats(data_dir):
             if line['key'] in eval_durations.keys():
 
                 # UNET3D specific
-                # # Save the size only once, else we will have the same value 4 times
-                # if line['key'] == 'eval_load_batch_mem':
-                #     # The shape gives the number of pixels, each is of type np.float32 so 4 bytes
-                #     sample_size = int(np.prod(line['value']['image_shape'])) * 4
-                #     per_eval_durations[eval_num]['eval_image_sizes'].append(sample_size)
+                # Save the size only once, else we will have the same value 4 times
+                if line['key'] == 'eval_load_batch_mem':
+                    # The shape gives the number of pixels, each is of type np.float32 so 4 bytes
+                    sample_size = int(np.prod(line['value']['image_shape'])) * 4
+                    per_eval_durations[eval_num]['eval_image_sizes'].append(sample_size)
 
                 value = line['value']['duration']
                 per_eval_durations[eval_num][line['key']].append(value)
@@ -178,7 +456,7 @@ def export_per_eval_stats(data_dir):
                     "stdev": int(stats.pstdev(data[metric])),
                 }
         
-        outfile_base = os.path.basename(log_file).replace("_instrumented", "").replace(".json", "")
+        outfile_base = os.path.basename(log_file).replace(".json", "")
 
         ##############################
         # Save eval data
@@ -203,6 +481,22 @@ def get_smallest_common_length(data):
     return l
 
 
+def get_num_gpus(log_file_name):
+    res = re.search(r'.*([0-9])GPU.*', log_file_name)
+    if res is None:
+        res = re.search(r'.*([0-9])gpu.*', log_file_name)
+    return int(res.group(1))
+
+
+def get_batch_size(log_file_name):
+    res = re.search(r'.*([0-9]+)batch.*', log_file_name)
+    if res is None:
+        res = re.search(r'.*([0-9]+)b_.*', log_file_name)
+    if res is None:
+        res = re.search(r'.*batch([0-9]+).*', log_file_name)
+    return int(res.group(1))
+
+
 def UNET_export_overall_epoch_stats(data_dir):
 
     log_files = [os.path.join(data_dir, "per_epoch", f) for f in os.listdir(os.path.join(data_dir, "per_epoch")) if re.match(rf'{WORKLOAD}_.*_durations\.json', f)]
@@ -215,14 +509,8 @@ def UNET_export_overall_epoch_stats(data_dir):
     
     overall_durations = copy.deepcopy(durations)
     overall_durations["sum_all"] = np.asarray([], dtype=np.int64)
-    overall_durations["sum_all_except_load_sample"] = np.asarray([], dtype=np.int64)
-    overall_durations["sum_all_except_load_and_cum_loss"] = np.asarray([], dtype=np.int64)
+    overall_durations["all_compute_summed"] = np.asarray([], dtype=np.int64)
     overall_durations["total_minus_load"] = np.asarray([], dtype=np.int64)
-    overall_durations["total_minus_load_incl_preproc"] = np.asarray([], dtype=np.int64)
-    overall_durations["total_minus_load_minus_cum_loss_incl_preproc"] = np.asarray([], dtype=np.int64)
-
-    overall_durations["total_minus_cum_loss"] = np.asarray([], dtype=np.int64)
-    overall_durations["total_minus_load_preproc_and_cum_loss"] = np.asarray([], dtype=np.int64)
 
 
     for log_file in log_files:
@@ -232,64 +520,55 @@ def UNET_export_overall_epoch_stats(data_dir):
         log = json.load(infile)
         infile.close()
  
-        res = re.search(r'.*([0-9])GPU.*', log_file)
-        gpu_key = int(res.group(1))
-        batch_key = int(os.path.basename(log_file).split("_")[2].replace("batch", ""))
+        gpu_key = get_num_gpus(log_file)
+        batch_key = get_batch_size(log_file)
         print(f"GPUs: {gpu_key}, batch size: {batch_key}")
+
+        if gpu_key not in GPUs_int or batch_key not in batches_int:
+            continue
         
-        total_minus_cum_loss = np.asarray([], dtype=np.int64)
-        total_minus_load_preproc_and_cum_loss = np.asarray([], dtype=np.int64)
+        total_minus_load = np.asarray([], dtype=np.int64)
 
         # Calculate stats for each epoch in current log file
         for epoch, data in log.items():
+
             # Used to calculate means over all but first epoch
-            if epoch == 1:
+            if epoch == "1" or epoch == 1:
+                print('skipping epoch 1')
                 continue
 
             min_size = get_smallest_common_length(data)
-            
+
             diff = np.asarray(data["step_end"][:min_size]) - np.asarray(data["load_batch_mem"][:min_size])
+
             overall_durations["total_minus_load"] = np.append(overall_durations["total_minus_load"], diff)
+            total_minus_load = np.append(total_minus_load, diff)
 
             # Sample load and preproc are per SAMPLE values, while everything else is per BATCH
             # So we will sum up batch_size values of sample load and preproc to obtain comparable values
-            sample_load = np.asarray(data["sample_load"])
-            sample_preproc = np.asarray(data["sample_preproc"])
+            if "sample_load" in data and "sample_preproc" in data:
 
-            pad_size = (min_size * batch_key) - len(sample_load)
+                sample_load = np.asarray(data["sample_load"])
+                sample_preproc = np.asarray(data["sample_preproc"])
 
-            sample_load = np.pad(sample_load, [0, pad_size])
-            sample_preproc = np.pad(sample_preproc, [0, pad_size])
+                pad_size = (min_size * batch_key) - len(sample_load)
 
-            # Reshape groups them into batch_size long subarrays.
-            # we then sum over those
-            sample_load = sample_load.reshape(-1, batch_key).sum(1)
-            sample_preproc = sample_preproc.reshape(-1, batch_key).sum(1)
+                if pad_size >= 0:
+                    sample_load = np.pad(sample_load, [0, pad_size])
+                    sample_preproc = np.pad(sample_preproc, [0, pad_size])
+                else:
+                    sample_load = sample_load[:pad_size]
+                    sample_preproc = sample_preproc[:pad_size]
 
-            # Add back the time taken to preprocess each sample
-            diff += sample_preproc
-            overall_durations["total_minus_load_incl_preproc"] = np.append(overall_durations["total_minus_load_incl_preproc"], diff)
+                # Reshape groups them into batch_size long subarrays.
+                # we then sum over those
+                sample_load = sample_load.reshape(-1, batch_key).sum(1)
+                sample_preproc = sample_preproc.reshape(-1, batch_key).sum(1)
 
-
-            # subtract cum_loss from diff to obtain total - load - cum_loss + preproc
-            diff -= np.asarray(data["cum_loss_fn_calc"][:min_size])
-            overall_durations["total_minus_load_minus_cum_loss_incl_preproc"] = np.append(overall_durations["total_minus_load_minus_cum_loss_incl_preproc"], diff)
-
-            # Remove preproc again
-            # should have total - load batch + (preproc - preproc) - cum_loss 
-            diff -= sample_preproc
-            overall_durations["total_minus_load_preproc_and_cum_loss"] = np.append(overall_durations["total_minus_load_preproc_and_cum_loss"], diff)
-            total_minus_load_preproc_and_cum_loss = np.append(total_minus_load_preproc_and_cum_loss, diff)
-
-            # should have total - load batch + load batch + (preproc - preproc) - cum_loss 
-            # = total - cum_loss
-            diff += np.asarray(data["load_batch_mem"][:min_size])
-            overall_durations["total_minus_cum_loss"] = np.append(overall_durations["total_minus_cum_loss"], diff)
-            total_minus_cum_loss = np.append(total_minus_cum_loss, diff)
 
             sum_all = np.zeros(shape=(min_size))
-            sum_all_except_load_sample = np.zeros(shape=(min_size))
-            sum_all_except_load_and_cum_loss = np.zeros(shape=(min_size))
+            all_compute_summed = np.zeros(shape=(min_size))
+
             for metric in data.keys():
 
                 if metric == "sample_load":
@@ -299,32 +578,35 @@ def UNET_export_overall_epoch_stats(data_dir):
                 elif metric == "sample_preproc":
                     overall_stats[gpu_key][batch_key][metric].extend(sample_preproc.tolist())
                     overall_durations[metric].extend(sample_preproc)
-                    sum_all_except_load_sample += np.asarray(sample_preproc)
-                    sum_all_except_load_and_cum_loss += np.asarray(sample_preproc)
                     continue
 
                 if metric != "step_end":
                     # Sum all will not include step_end, sample_load and sample_preproc
                     # so it is the sum of steps 1-7
                     sum_all += np.asarray(data[metric][:min_size])
-                    
-                    if metric != "load_batch_mem":
-                        sum_all_except_load_sample += np.asarray(data[metric][:min_size])
 
-                        if metric != "cum_loss_fn_calc":
-                            sum_all_except_load_and_cum_loss += np.asarray(data[metric][:min_size])
+                    if metric != "load_batch_mem" and metric != 'all_compute': 
+                        all_compute_summed += np.asarray(data[metric][:min_size])
+
 
                 overall_stats[gpu_key][batch_key][metric].extend(data[metric])
                 overall_durations[metric].extend(data[metric])
+
             
             overall_durations["sum_all"] = np.append(overall_durations["sum_all"], sum_all)
-            overall_durations["sum_all_except_load_sample"] = np.append(overall_durations["sum_all_except_load_sample"], sum_all_except_load_sample)
-            overall_durations["sum_all_except_load_and_cum_loss"] = np.append(overall_durations["sum_all_except_load_and_cum_loss"], sum_all_except_load_and_cum_loss)
+            overall_durations["all_compute_summed"] = np.append(overall_durations["all_compute_summed"], all_compute_summed)
 
-        overall_stats[gpu_key][batch_key]["total_minus_load_preproc_and_cum_loss"] = total_minus_load_preproc_and_cum_loss.tolist()
-        overall_stats[gpu_key][batch_key]["total_minus_cum_loss"] = total_minus_cum_loss.tolist()
+        overall_stats[gpu_key][batch_key]["total_minus_load"] = total_minus_load.tolist()
+        overall_stats[gpu_key][batch_key]["sum_all"] = sum_all.tolist()
+        overall_stats[gpu_key][batch_key]["all_compute_summed"] = all_compute_summed.tolist()
 
     print("computing actual overall means")
+
+    # Set to 1_000_000_000 for data in ns
+    CONVERSION = 1
+
+    outdir = os.path.join(data_dir, "overall")
+    pathlib.Path(outdir).mkdir(exist_ok=True)
 
     actual_overall_stats = copy.deepcopy(durations)
 
@@ -332,20 +614,24 @@ def UNET_export_overall_epoch_stats(data_dir):
         print(metric)
         quartiles = stats.quantiles(overall_durations[metric])
         actual_overall_stats[metric] = {
-            "mean": round(np.asarray(overall_durations[metric]).mean() / 1_000_000_000, 3),
-            "stdev": round(np.asarray(overall_durations[metric]).std() / 1_000_000_000, 3),
-            "q1": round(quartiles[0] / 1_000_000_000, 3),
-            "q3": round(quartiles[2] / 1_000_000_000, 3),
+            "mean": round(np.asarray(overall_durations[metric]).mean() / CONVERSION, 3),
+            "median": round(np.median(np.asarray(overall_durations[metric])) / CONVERSION, 3),
+            "stdev": round(np.asarray(overall_durations[metric]).std() / CONVERSION, 3),
+            "q1": round(quartiles[0] / CONVERSION, 3),
+            "q3": round(quartiles[2] / CONVERSION, 3),
         }
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_actual_overall.json"), mode="w") as outfile:
+
+    with open(os.path.join(outdir, f"{WORKLOAD}_epoch_actual_overall.json"), mode="w") as outfile:
         json.dump(actual_overall_stats, outfile, indent=4)
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_overall_stats.json"), mode="w") as outfile:
+    with open(os.path.join(outdir, f"{WORKLOAD}_epoch_overall_stats.json"), mode="w") as outfile:
         json.dump(overall_stats, outfile, indent=4)
     
     all_exported_metrics = list(durations.keys())
-    all_exported_metrics.extend(["total_minus_load_preproc_and_cum_loss", "total_minus_cum_loss"])
+    all_exported_metrics.append("total_minus_load")
+    all_exported_metrics.append("sum_all")
+    all_exported_metrics.append("all_compute_summed")
 
     print(all_exported_metrics)
     # Compute and export overall means
@@ -359,13 +645,15 @@ def UNET_export_overall_epoch_stats(data_dir):
                 data = overall_stats[gpu_key][batch_key][metric]
                 
                 overall_means[gpu_key][batch_key][metric] = {}
-                overall_means[gpu_key][batch_key][metric]["mean"] = stats.mean(data) / 1_000_000_000
-                overall_means[gpu_key][batch_key][metric]["stdev"] = stats.pstdev(data) / 1_000_000_000
+                overall_means[gpu_key][batch_key][metric]["mean"] = stats.mean(data) / CONVERSION
+                overall_means[gpu_key][batch_key][metric]["median"] = stats.median(data) / CONVERSION
+                overall_means[gpu_key][batch_key][metric]["stdev"] = stats.pstdev(data) / CONVERSION
                 quartiles = stats.quantiles(data)
-                overall_means[gpu_key][batch_key][metric]["q1"] = quartiles[0] / 1_000_000_000
-                overall_means[gpu_key][batch_key][metric]["q3"] = quartiles[2] / 1_000_000_000
+                overall_means[gpu_key][batch_key][metric]["q1"] = quartiles[0] / CONVERSION
+                overall_means[gpu_key][batch_key][metric]["q3"] = quartiles[2] / CONVERSION
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_overall_means.json"), mode="w") as outfile:
+
+    with open(os.path.join(outdir, f"{WORKLOAD}_epoch_overall_means.json"), mode="w") as outfile:
         json.dump(overall_means, outfile, indent=4)
 
 
@@ -392,9 +680,8 @@ def DLRM_export_overall_epoch_stats(data_dir):
         log = json.load(infile)
         infile.close()
  
-        res = re.search(r'.*([0-9])GPU.*', log_file)
-        gpu_key = int(res.group(1))
-        batch_key = int(os.path.basename(log_file).split("_")[2].replace("batch", ""))
+        gpu_key = get_num_gpus(log_file)
+        batch_key = get_batch_size(log_file)
         print(f"GPUs: {gpu_key}, batch size: {batch_key}")
         
         over_all_epochs_sum_all = np.asarray([], dtype=np.int64)
@@ -501,10 +788,8 @@ def export_overall_eval_stats(data_dir):
         log = json.load(infile)
         infile.close()
  
-        res = re.search(r'.*([0-9])GPU.*', log_file)
-        gpu_key = int(res.group(1))
-
-        batch_key = int(os.path.basename(log_file).split("_")[2].replace("batch", ""))
+        gpu_key = get_num_gpus(log_file)
+        batch_key = get_batch_size(log_file)
         print(f"GPUs: {gpu_key}, batch size: {batch_key}")
         
         # Calculate stats for each eval in current log file
@@ -536,6 +821,9 @@ def export_overall_eval_stats(data_dir):
 
     eval_actual_overall_stats = copy.deepcopy(eval_durations)
 
+    # Set to 1_000_000_000 for data in ns
+    CONVERSION = 1
+
     for metric in eval_overall_durations.keys():
         # These are np arrays so we process them differently
         if metric in ["eval_image_sizes"]:
@@ -545,8 +833,8 @@ def export_overall_eval_stats(data_dir):
             }    
         else:
             eval_actual_overall_stats[metric] = {
-                "mean": round(np.asarray(eval_overall_durations[metric]).mean() / 1_000_000_000, 3),
-                "stdev": round(np.asarray(eval_overall_durations[metric]).std() / 1_000_000_000, 3)
+                "mean": round(np.asarray(eval_overall_durations[metric]).mean() / CONVERSION, 3),
+                "stdev": round(np.asarray(eval_overall_durations[metric]).std() / CONVERSION, 3)
             }
 
     with open(os.path.join(data_dir, f"{WORKLOAD}_eval_actual_overall.json"), mode="w") as outfile:
@@ -567,21 +855,24 @@ def export_overall_eval_stats(data_dir):
                 data = eval_overall_stats[gpu_key][batch_key][metric]
                 
                 eval_overall_means[gpu_key][batch_key][metric] = {}
-                eval_overall_means[gpu_key][batch_key][metric]["mean"] = stats.mean(data) / 1_000_000_000
-                eval_overall_means[gpu_key][batch_key][metric]["stdev"] = stats.pstdev(data) / 1_000_000_000
+                eval_overall_means[gpu_key][batch_key][metric]["mean"] = stats.mean(data) / CONVERSION
+                eval_overall_means[gpu_key][batch_key][metric]["median"] = stats.median(data) / CONVERSION
+                eval_overall_means[gpu_key][batch_key][metric]["stdev"] = stats.pstdev(data) / CONVERSION
 
                 quartiles = stats.quantiles(data)
-                eval_overall_means[gpu_key][batch_key][metric]["q1"] = quartiles[0] / 1_000_000_000
-                eval_overall_means[gpu_key][batch_key][metric]["q3"] = quartiles[2] / 1_000_000_000
+                eval_overall_means[gpu_key][batch_key][metric]["q1"] = quartiles[0] / CONVERSION
+                eval_overall_means[gpu_key][batch_key][metric]["q3"] = quartiles[2] / CONVERSION
 
+    outdir = os.path.join(data_dir, "overall")
+    pathlib.Path(outdir).mkdir(exist_ok=True)
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_eval_overall_means.json"), mode="w") as outfile:
+    with open(os.path.join(outdir, f"{WORKLOAD}_eval_overall_means.json"), mode="w") as outfile:
         json.dump(eval_overall_means, outfile, indent=4)
 
 
 def plot_overall_step_time_curves(data_dir):
     
-    with open(os.path.join(data_dir, "overall_means.json"), mode="r") as infile:
+    with open(os.path.join(data_dir, "overall", "overall_means.json"), mode="r") as infile:
         overall_means = json.load(infile)
 
     # Overall plot
@@ -620,29 +911,31 @@ def plot_overall_step_time_curves(data_dir):
 
 
 # Individual phases plots
-def UNET_plot_epoch_individual_time_curves(data_dir, sharey=True):
+def UNET_plot_epoch_individual_time_curves(data_dir, detail=None):
     print("Plotting relative time curves for epochs")
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_overall_means.json"), mode="r") as infile:
+    with open(os.path.join(data_dir, "overall", f"{WORKLOAD}_epoch_overall_means.json"), mode="r") as infile:
         overall_means = json.load(infile)
 
     metrics_pretty_names = {
-        "total_minus_cum_loss": "Overall step",
-        "sample_load": "1.1-Batch load",
-        "sample_preproc": "1.2-Sample Preproc (CPU)",
-        "total_minus_load_preproc_and_cum_loss": "2-Batch Processing",
+        "step_end": "Overall step",
+        # "sample_load": "1.1-Batch load",
+        # "sample_preproc": "1.2-Sample Preproc (CPU)",
+        "load_batch_mem": "1-Batch load",
+        "total_minus_load": "2-Batch Processing",
+        "all_compute_summed": "2-Batch Processing (sum)",
         "load_batch_gpu": "2.1-Batch to GPU",
         "model_forward_pass": "2.2-Forward pass",
         "loss_tensor_calc": "2.3-Loss calc",
         "model_backward_pass": "2.4-Backward pass",
         "model_optim_step": "2.5-Optimizer step",
-        # "cum_loss_fn_calc": "7-Cumulative loss",
+        "cum_loss_fn_calc": "2.6-Cumulative loss",
     }
     durations = { metric: [] for metric in metrics_pretty_names }
 
     # Overall plot
-    fig, axes = plt.subplots(nrows=1, ncols=len(durations.keys()), layout="constrained", figsize=(3.1 * len(durations.keys()), 8), sharey=sharey)
-    fig.suptitle(f"{WORKLOAD} Average Time per Step Component (no step 7)")
+    fig, axes = plt.subplots(nrows=1, ncols=len(durations.keys()), layout="constrained", figsize=(3.1 * len(durations.keys()), 8), sharey=True)
+    fig.suptitle(f"{WORKLOAD}{' ' + detail if detail else ''} Median Time per Step Component")
 
     i_ax = -1
     for metric in durations.keys():
@@ -657,11 +950,11 @@ def UNET_plot_epoch_individual_time_curves(data_dir, sharey=True):
         for gpu_key in GPUs_str:
             x = np.asarray(batches_int2)
 
-            y = [ overall_means[gpu_key][batch][metric]["mean"] for batch in batches_str2 ]
+            y = [ overall_means[gpu_key][batch][metric]["median"] for batch in batches_str2 ]
             y = np.asarray(y)
 
-            std = [ overall_means[gpu_key][batch][metric]["stdev"] for batch in batches_str2]
-            std = np.asarray(std)
+            # std = [ overall_means[gpu_key][batch][metric]["stdev"] for batch in batches_str2]
+            # std = np.asarray(std)
 
             q1 = [ overall_means[gpu_key][batch][metric]["q1"] for batch in batches_str2 ]
             q1 = np.asarray(q1)
@@ -671,8 +964,7 @@ def UNET_plot_epoch_individual_time_curves(data_dir, sharey=True):
             
             ax.plot(x, y, label=f"{gpu_key} GPUs")
 
-            # ax.fill_between(x, y-std, y+std, alpha=0.15)
-            ax.fill_between(x, y-q1, y+q3, alpha=0.15)
+            ax.fill_between(x, q1, q3, alpha=0.05)
 
             # ax.set_xscale('log', base=2)
             # for large batch sizes
@@ -681,15 +973,16 @@ def UNET_plot_epoch_individual_time_curves(data_dir, sharey=True):
                 # ax.tick_params(axis='x', labelrotation=45)
 
             # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.grid(True, axis="both", linestyle="--", linewidth=0.45, alpha=0.4, color="grey")
             ax.set_xlabel("Batch size", fontsize=10)
             ax.set_ylabel("Time taken (s)", fontsize=10)
             ax.legend()
 
-    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "relative_times")
+    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "step_breakdown")
     # Create output directory if it doesn't exist
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    filename = f"{WORKLOAD}_epoch_relative_times.png"
+    filename = f"{WORKLOAD}{'_' + detail if detail else ''}_epoch_breakdown.png"
     figure_filename = os.path.join(output_dir, filename)
 
     plt.savefig(figure_filename, format="png", dpi=450)
@@ -700,12 +993,97 @@ def UNET_plot_epoch_individual_time_curves(data_dir, sharey=True):
     plt.close(fig)
 
 
+# Individual phases plots
+def UNET_plot_epoch_step_breakdown_paper(data_dir, detail=None):
+    print("Plotting relative time curves for epochs (paper)")
+
+    with open(os.path.join(data_dir, "overall", f"{WORKLOAD}_epoch_overall_means.json"), mode="r") as infile:
+        overall_means = json.load(infile)
+
+    metrics_pretty_names = {
+        "step_end": "Overall",
+        "sample_load": "1-Batch load",
+        "sample_preproc": "2-Sample Preproc (CPU)",
+        "total_minus_load": "3-Batch Processing",
+        # "load_batch_gpu": "2.1-Batch to GPU",
+        # "model_forward_pass": "2.2-Forward pass",
+        # "loss_tensor_calc": "2.3-Loss calc",
+        # "model_backward_pass": "2.4-Backward pass",
+        # "model_optim_step": "2.5-Optimizer step",
+        # "cum_loss_fn_calc": "7-Cumulative loss",
+    }
+    durations = { metric: [] for metric in metrics_pretty_names }
+
+    # Overall plot
+    fig, axes = plt.subplots(nrows=1, ncols=len(durations.keys()), layout="constrained", figsize=(3.1 * len(durations.keys()), 8), sharey=True)
+
+    i_ax = -1
+    for metric in durations.keys():
+        i_ax += 1
+        ax = axes[i_ax]
+        ax.set_title(metrics_pretty_names[metric], fontsize=14)
+
+        batches_int2 = batches_int
+        batches_str2 = batches_str
+
+        # plot the metric in the axes
+        for gpu_key in GPUs_str:
+            x = np.asarray(batches_int2)
+
+            y = [ overall_means[gpu_key][batch][metric]["median"] for batch in batches_str2 ]
+            y = np.asarray(y)
+
+            q1 = [ overall_means[gpu_key][batch][metric]["q1"] for batch in batches_str2 ]
+            q1 = np.asarray(q1)
+
+            q3 = [ overall_means[gpu_key][batch][metric]["q3"] for batch in batches_str2 ]
+            q3 = np.asarray(q3)
+
+            # print(f"GPU {gpu_key} {metric}:\n\t{x}\n\t{y}\n\t{q1}\n\t{q3}")
+            
+            ax.plot(x, y, label=f"{gpu_key} GPUs")
+
+            # ax.fill_between(x, y-std, y+std, alpha=0.15)
+            ax.fill_between(x, q1, q3, alpha=0.05)
+
+            # ax.set_xscale('log', base=2)
+            # for large batch sizes
+            if len(batches_str[0]) > 3:
+                ax.set_xticks(batches_int2, batches_str2, rotation=-45, ha='center', fontsize=10)
+                # ax.tick_params(axis='x', labelrotation=45)
+
+            # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            # ax.set_xlabel("Batch size", fontsize=14)
+            ax.grid(True, axis="both", linestyle="--", linewidth=0.45, alpha=0.4, color="grey")
+
+            # ax.legend()
+
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper right',  bbox_to_anchor = (0, -0.035, 1, 1), bbox_transform = plt.gcf().transFigure, fontsize=14)
+
+    fig.supylabel("Time taken (s)", fontsize=14)
+    fig.supxlabel('Batch Size', fontsize=14)
+
+    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "step_breakdown")
+    # Create output directory if it doesn't exist
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    filename = f"{WORKLOAD}{'_' + detail if detail else ''}_epoch_breakdown_paper.png"
+    figure_filename = os.path.join(output_dir, filename)
+
+    plt.savefig(figure_filename, format="png", dpi=450)
+    # Clear the current axes.
+    plt.cla() 
+    # Closes all the figure windows.
+    plt.close('all')   
+    plt.close(fig)
+
 
 # Individual phases plots
 def DLRM_plot_epoch_individual_time_curves(data_dir, sharey=True):
     print("Plotting relative time curves for epochs")
 
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_overall_means.json"), mode="r") as infile:
+    with open(os.path.join(data_dir, "overall", f"{WORKLOAD}_epoch_overall_means.json"), mode="r") as infile:
         overall_means = json.load(infile)
 
     metrics_pretty_names = {
@@ -768,11 +1146,11 @@ def DLRM_plot_epoch_individual_time_curves(data_dir, sharey=True):
             ax.set_ylabel("Time taken (s)", fontsize=10)
             ax.legend()
 
-    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "relative_times")
+    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "step_breakdown")
     # Create output directory if it doesn't exist
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    filename = f"{WORKLOAD}_epoch_relative_times.png"
+    filename = f"{WORKLOAD}_epoch_breakdown.png"
     figure_filename = os.path.join(output_dir, filename)
 
     plt.savefig(figure_filename, format="png", dpi=450)
@@ -786,7 +1164,7 @@ def DLRM_plot_epoch_individual_time_curves(data_dir, sharey=True):
 # Individual phases plots
 def plot_epoch_violin(data_dir, sharey=True):
     
-    with open(os.path.join(data_dir, f"{WORKLOAD}_epoch_overall_stats.json"), mode="r") as infile:
+    with open(os.path.join(data_dir, "overall", f"{WORKLOAD}_epoch_overall_stats.json"), mode="r") as infile:
         all_values = json.load(infile)
 
     # Overall plot
@@ -1011,11 +1389,10 @@ def plot_latency_histograms(data_dir):
             plt.close(fig)
 
 
-
 # Individual phases plots
-def plot_eval_individual_time_curves(data_dir, sharey=True):
+def plot_eval_individual_time_curves(data_dir, detail=None):
     print("Plotting relative times curves for evals")
-    with open(os.path.join(data_dir, f"{WORKLOAD}_eval_overall_means.json"), mode="r") as infile:
+    with open(os.path.join(data_dir, "overall", f"{WORKLOAD}_eval_overall_means.json"), mode="r") as infile:
         eval_overall_means = json.load(infile)
 
     # Overall plot
@@ -1024,10 +1401,10 @@ def plot_eval_individual_time_curves(data_dir, sharey=True):
     # num_subplots = len(eval_durations.keys()) - 1
     
     # DLRM plot them all
-    num_subplots = len(eval_durations.keys()) 
+    num_subplots = len(eval_durations.keys()) - 1
 
-    fig, axes = plt.subplots(nrows=1, ncols=num_subplots, layout="constrained", figsize=(3.1 * num_subplots, 8), sharey=sharey)
-    fig.suptitle("Average Time per Evaluation Step Phase (Eval > 1) ")
+    fig, axes = plt.subplots(nrows=1, ncols=num_subplots, layout="constrained", figsize=(3.1 * num_subplots, 8), sharey=True)
+    fig.suptitle(f"{WORKLOAD}{' ' + detail if detail else ''} Median Time per Evaluation Step Phase (Eval > 1) ")
 
     i_ax = -1
     for metric in eval_durations.keys():
@@ -1042,11 +1419,11 @@ def plot_eval_individual_time_curves(data_dir, sharey=True):
         for gpu_key in GPUs_str:
             x = np.asarray(batches_int)
 
-            y = [ eval_overall_means[gpu_key][batch][metric]["mean"] for batch in batches_str ]
+            y = [ eval_overall_means[gpu_key][batch][metric]["median"] for batch in batches_str ]
             y = np.asarray(y)
 
-            std = [ eval_overall_means[gpu_key][batch][metric]["stdev"] for batch in batches_str]
-            std = np.asarray(std)
+            # std = [ eval_overall_means[gpu_key][batch][metric]["stdev"] for batch in batches_str]
+            # std = np.asarray(std)
 
             q1 = [ eval_overall_means[gpu_key][batch][metric]["q1"] for batch in batches_str]
             q1 = np.asarray(q1)
@@ -1057,7 +1434,7 @@ def plot_eval_individual_time_curves(data_dir, sharey=True):
             ax.plot(x, y, label=f"{gpu_key} GPUs")
 
             # ax.fill_between(x, y-std, y+std, alpha=0.15)
-            ax.fill_between(x, y-q1, y+q3, alpha=0.15)
+            ax.fill_between(x, q1, q3, alpha=0.05)
 
             # ax.set_xscale('log', base=2)
             # for large batch sizes
@@ -1065,16 +1442,17 @@ def plot_eval_individual_time_curves(data_dir, sharey=True):
             if len(batches_str[0]) > 3:
                 ax.tick_params(axis='x', labelrotation=45)
 
+            ax.grid(True, axis="both", linestyle="--", linewidth=0.45, alpha=0.4, color="grey")
             # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             ax.set_xlabel("Batch size", fontsize=10)
             ax.set_ylabel("Time taken (s)", fontsize=10)
             ax.legend()
 
-    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "relative_times")
+    output_dir = os.path.join(data_dir, "plots", WORKLOAD, "step_breakdown")
     # Create output directory if it doesn't exist
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    filename = f"{WORKLOAD}_eval_relative_times.png"
+    filename = f"{WORKLOAD}{'_' + detail if detail else ''}_eval_breakdown.png"
     figure_filename = os.path.join(output_dir, filename)
 
     plt.savefig(figure_filename, format="png", dpi=450)
@@ -1149,21 +1527,29 @@ def plot_eval_individual_time_curves_by_image_size(data_dir, sharey=True):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Calculate average times spent in diff phases of training")
     parser.add_argument("data_dir", help="Data directory")
+    parser.add_argument("-n", "--name", help="Detailed name to differentiate plots")
     args = parser.parse_args()
 
-    # export_per_eval_stats(args.data_dir)
     # export_per_epoch_stats(args.data_dir)
-    
-    UNET_export_overall_epoch_stats(args.data_dir)
-    # DLRM_export_overall_epoch_stats(args.data_dir)
-    # export_overall_eval_stats(args.data_dir)
+    # export_per_eval_stats(args.data_dir)
 
-    # plot_overall_step_time_curves(args.data_dir)
-    # plot_latency_histograms(args.data_dir)
+    plot_from_raw(args.data_dir, args.name)
 
-    UNET_plot_epoch_individual_time_curves(args.data_dir, sharey=True)
+    # UNET_export_overall_epoch_stats(args.data_dir)
+    # # export_overall_eval_stats(args.data_dir)
 
-    # DLRM_plot_epoch_individual_time_curves(args.data_dir, sharey=True)
-    # plot_eval_individual_time_curves(args.data_dir, sharey=True)
+    # # # DLRM_export_overall_epoch_stats(expdir)
 
-    # plot_eval_individual_time_curves_by_image_size(args.data_dir, sharey=True)
+    # # plot_overall_step_time_curves(expdir)
+    # # plot_latency_histograms(expdir)
+
+    # # UNET_plot_epoch_step_breakdown_paper(args.data_dir, args.name)
+    # UNET_plot_epoch_individual_time_curves(args.data_dir, args.name)
+    # plot_eval_individual_time_curves(args.data_dir)
+
+    # UNET_plot_epoch_individual_time_curves(expdir, sharey=True, median=False)
+    # plot_eval_individual_time_curves(expdir, sharey=True, median=False)
+
+    # DLRM_plot_epoch_individual_time_curves(expdir, sharey=True)
+
+    # plot_eval_individual_time_curves_by_image_size(expdir, sharey=True)
