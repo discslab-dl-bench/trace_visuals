@@ -147,7 +147,7 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                     if not got_expected:
                         error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
-                        if error_count > 100:
+                        if error_count > 10000:
                             print(f"\nERROR: More than 100 errors during processing of {filename}. Aborting.")
                             print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
@@ -156,7 +156,7 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                     if len(cols) != expected_num_cols:
                         error_count += 1
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
-                        if error_count > 100:
+                        if error_count > 10000:
                             print(f"\nERROR: nMore than 100 errors during processing of {filename}. Aborting.")
                             print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
