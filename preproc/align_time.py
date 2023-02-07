@@ -4,31 +4,19 @@ import pathlib
 import numpy as np
 import argparse
 
-# We are in eastern time, so UTC-4 during DST and UTC-5 otherwise
-UTC_TIME_DELTA = 5
+from .mllog import get_init_start_time
+from .utilities import get_local_date, get_fields
 
 MAX_ERR_COUNT = 1500
 
-# Add any new trace we want to time align here
-# We don't care about close, create_del for plotting (for now)
-TRACES = ["bio", "openat", "read", "write"]
-
-# Some lines can have an extra column or two, e.g. if reading from a file with a name vs anonymous
-TRACES_AND_EXPECTED_NUM_COLUMNS = {
-    "bio": [8, 9],      # Old bio trace was 9, new one is 8
-    "openat": [5, 6],   # Both 5 and 6 are valid
-    "read": [5, 6],
-    "write": [5, 6]     # Old trace was [8, 9]    
-}
-
-"""
-This function reads the time align trace and looks at every seconds transition
-that was captured. It looks at the difference between the nsecs timestamp before and after
-these transition and finds the minimum one.
-Using the nsecs timestamps with minimal difference, it takes their midpoint and aligns it
-with the given second in localtime. 
-"""
-def get_ref_ts(timealign_trace, gpu_trace):
+def _get_ref_ts(timealign_trace, gpu_trace):
+    """
+    This function reads the time align trace and looks at every seconds transition
+    that was captured. It looks at the difference between the nsecs timestamp before and after
+    these transition and finds the minimum one.
+    Using the nsecs timestamps with minimal difference, it takes their midpoint and aligns it
+    with the given second in localtime. 
+    """
 
     timealign_trace = open(timealign_trace, "r")
     
@@ -63,7 +51,6 @@ def get_ref_ts(timealign_trace, gpu_trace):
                 if diff < min_ts_diff:
                     min_ts_diff = diff
 
-                    min_ts_0 = prev_ts
                     min_ts_1 = ts
                     min_lt_0 = prev_lt
                     min_lt_1 = lt
@@ -78,17 +65,7 @@ def get_ref_ts(timealign_trace, gpu_trace):
     ref_ts = int(min_ts_1) - (min_ts_diff // 2)
     ref_lt = min_lt_1
 
-    # Try to get the date from the GPU trace
-    gpu_trace = open(gpu_trace, "r")
-
-    pat = re.compile(r'^\s+(\d{8})\s+(\d{2}:\d{2}:\d{2}).*')
-
-    localdate = None
-    for line in gpu_trace:
-        if match := pat.match(line):
-            localdate = match.group(1)
-            print(f"Found the local date in gpu trace: {localdate}\n")
-            break
+    localdate = get_local_date(gpu_trace)
 
     # Gpu trace localdate is in YYYYMMDD, break it into YYYY-MM-DD
     local_time_str = f"{localdate[0:4]}-{localdate[4:6]}-{localdate[6:]}T{ref_lt}.000000000"
@@ -97,40 +74,42 @@ def get_ref_ts(timealign_trace, gpu_trace):
 
     return ref_ts, ref_local_time
 
-# Read a line and revert the file pointer 
-def peek_line(f):
-    pos = f.tell()
-    line = f.readline()
-    f.seek(pos)
-    return line
 
-"""
-Once we have estimated the matching between nsecs timestamp and local time, we can  
-convert the timestamps to UTC to be able to align them with data from other sources.
-"""
-def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
+def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, traces_expected_cols_map, utc_timedelta):
+    """
+    First, interpolate an alignment between the bpftrace 'nsecs since boot' 
+    timestamp and local time, then convert the timestamps to UTC.
+    """
+
+    time_align_trace = os.path.join(traces_dir, "trace_time_align.out")
+    gpu_trace = os.path.join(traces_dir, "gpu.out")
+    ref_ts, ref_t = _get_ref_ts(time_align_trace, gpu_trace)
+
+    # Gets the UTC timestamp of the INIT event in mllog
+    # We want to filter out every thing before this event.
+    init_ts = get_init_start_time(output_dir)
 
     print("Aligning all traces:")
 
-    ref_t = ref_t + np.timedelta64(UTC_TIME_DELTA, "h")
+    ref_t = ref_t + np.timedelta64(utc_timedelta, "h")
 
     # The traces have some lines at the start where we print out columns or other info
     # We want to skip those as they don't contain useful information
     regex_start_w_number = re.compile(r'^[0-9].*')
 
-    for trace in TRACES:
+    for trace in traces_to_align:
 
         print(f"\tProcessing {trace}")
         error_count = 0
-        expected_num_cols = TRACES_AND_EXPECTED_NUM_COLUMNS[trace]
+        expected_num_cols = traces_expected_cols_map[trace]
 
-        filename = "trace_" + trace + ".out"
+        filename = f"trace_{trace}.out"
         tracefile = open(os.path.join(traces_dir, filename), "r")
-        outfile = open(os.path.join(output_dir, trace + "_time_aligned.out"), "w")
+        outfile = open(os.path.join(output_dir, trace + "_UTC.out"), "w")
         
         for i, line in enumerate(tracefile):
             try:
-                cols = " ".join(line.split()).split(" ")
+                cols = get_fields(line)
                 # Handle empty lines
                 if cols[0] == "":
                     print(f"\t\t{filename} line {i} is empty. Continuing.")
@@ -151,7 +130,7 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
                         if error_count > MAX_ERR_COUNT:
                             print(f"\nERROR: More than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
-                            print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
+                            print(f"You might be processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
                         continue
                 else:
@@ -160,7 +139,7 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                         print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
                         if error_count > MAX_ERR_COUNT:
                             print(f"\nERROR: nMore than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
-                            print(f"Most likely you're processing an older trace. Change the expected number of columns to match.\n")
+                            print(f"You might be processing an older trace. Change the expected number of columns to match.\n")
                             exit(1)
                         continue 
 
@@ -169,25 +148,39 @@ def align_all_traces(traces_dir, output_dir, ref_ts, ref_t):
                 if re.match(regex_start_w_number, line) is None:
                     print(f"\t\t{filename} line {i} does not start with a number. Continuing.")
                     continue
+
                 # Get the timestamp
                 ts = int(cols[0])
                 # Calculate the diff
                 ts_delta = ts - ref_ts
                 # Get the UTC time
-                t = ref_t + ts_delta
-                outfile.write(np.datetime_as_string(t) + " " + " ".join(cols[1::]) + "\n")
+                utc_timestamp = ref_t + ts_delta
+
+                # Only write the line if it occured after workload initialization
+                if utc_timestamp >= init_ts:
+                    outfile.write(np.datetime_as_string(utc_timestamp) + " " + " ".join(cols[1::]) + "\n")
 
             except Exception as e:
-                print(f"\t\tError while processing trace_{trace}! Continuing.")
-                print(e)
-                continue
+                print(f"\t\tError while processing trace_{trace}!")
+                raise e
 
 
 if __name__ == "__main__":
 
-    print('#########################################################################')
-    print("align_time.py: Converting bpftrace's 'nsecs since boot' timestamps to UTC")
-    print('#########################################################################\n')
+    print(f'WARNING: Ensure the traces to align, expected number of columns in each trace and UTC time delta are up to date.')
+    # Add any new trace we want to time align here
+    # We don't care about close, create_del for plotting (for now)
+    TRACES = ["bio", "openat", "read", "write"]
+
+    # Some lines can have an extra column or two, e.g. if reading from a file with a name vs anonymous
+    TRACES_AND_EXPECTED_NUM_COLUMNS = {
+        "bio": [8, 9],      # Old bio trace was 9, new one is 8
+        "openat": [5, 6],   # Both 5 and 6 are valid
+        "read": [5, 6],
+        "write": [5, 6]     # Old trace was [8, 9]    
+    }
+    
+    UTC_TIME_DELTA = 5
 
     p = argparse.ArgumentParser(description="Convert bpftrace's 'nsecs since boot' timestamps to a UTC")
     p.add_argument("traces_dir", help="Directory where raw traces are")
@@ -212,7 +205,6 @@ if __name__ == "__main__":
         print(f"ERROR: Could not find gpu.out in {args.traces_dir}")
         exit(-1) 
 
-    ref_ts, ref_local_time = get_ref_ts(time_align_trace, gpu_trace)
-    align_all_traces(args.traces_dir, args.output_dir, ref_ts, ref_local_time)
+    convert_traces_timestamp_to_UTC(args.traces_dir, args.output_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
 
     print("All done\n")

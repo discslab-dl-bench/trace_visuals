@@ -3,15 +3,11 @@ import re
 import json
 import argparse
 import pathlib
+from .utilities import get_fields
 
-def get_fields(line):
-    """
-        Split the line on whitespace, join it on a single space then split it again.
-        This makes it return nicely delimited tokens because the original number of
-        spaces is variable.
-    """
-    return " ".join(line.split()).split(" ")
 
+def get_pids_from_read_trace(read_trace):
+    pass
 
 def main(data_dir, output_dir):
 
@@ -186,8 +182,6 @@ def main(data_dir, output_dir):
         justpidsfile.write(f"{pid}\n")
                 
 if __name__ == "__main__":
-
-
     p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
     p.add_argument("data_dir", help="Raw traces directory")
     p.add_argument("output_dir", help="output directory")
