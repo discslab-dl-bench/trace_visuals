@@ -4,7 +4,8 @@ from os import path
 
 from preproc.mllog import process_mllog
 from preproc.align_time import convert_traces_timestamp_to_UTC
-from preproc.bio_long_calls import process_long_bio_calls
+from preproc.bio import process_long_bio_calls
+from preproc.pids import get_pids
 
 # We are in eastern time, so UTC-4 during DST and UTC-5 otherwise
 UTC_TIME_DELTA = 5
@@ -46,13 +47,22 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload):
     First, process the application log
     """
     # Process the MLLOG first
-    # Cut out everything before initialization even before time aligning traces
+    # Cut out everything before initialization before time-aligning traces
     process_mllog(traces_dir, output_dir, workload)
-    
+
+    # Time-align traces
     convert_traces_timestamp_to_UTC(traces_dir, preproc_traces_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
 
+    # Remove p99 latency bio calls
     bio_trace_UTC = path.join(preproc_traces_dir, "bio_UTC.out")
     process_long_bio_calls(bio_trace_UTC, preproc_traces_dir, verbose=True)
+
+    # Get the PIDs
+    parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir)
+
+    # Use the ignore PIDs to preprocess the GPU trace
+
+
 
 
 if __name__=='__main__':

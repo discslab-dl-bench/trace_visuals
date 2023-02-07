@@ -1,4 +1,5 @@
 import os
+import re
 import argparse
 import numpy as np
 from statistics import mean
@@ -8,12 +9,54 @@ from itertools import zip_longest as izip_longest
 # We are in eastern time, so UTC-4 during DST, UTC-5 otherwise
 UTC_TIME_DELTA = 5
 
+
+def get_local_date(gpu_trace) -> str:
+    """
+    Return the local date from the nvidia-smi pmon trace in YYYY-MM-DD format.
+    """
+    pat = re.compile(r'^\s+(\d{8})\s+(\d{2}:\d{2}:\d{2}).*')
+    with open(gpu_trace, 'r') as gpu_trace:
+        date = None
+        for line in gpu_trace:
+            if match := pat.match(line):
+                date = match.group(1)
+                # Convert from YYYYMMDD to YYYY-MM-DD
+                date = f"{date[0:4]}-{date[4:6]}-{date[6:8]}"
+                print(f"Found the local date in gpu trace: {date}\n")
+                break
+    return np.datetime64(date)
+
+
+def get_num_gpus(gpu_trace) -> int:
+    """
+    Return the number of GPUs used in the experiment.
+    We assume GPUs are handed out starting from idx 0, which is the case for our workloads.
+    """
+    # Line format is 
+    # 
+    # 20230118   09:47:05      4    2647252     C     0     0     -     -   308   python 
+    # or  
+    # 20230118   09:46:56      5          -     -     -     -     -     -     -   -     
+    #
+    #  This will match only those lines with a process on GPU and have the GPU index in group 1
+    pat = re.compile(r'^\s+\d{8}\s+\d{2}:\d{2}:\d{2}\s+(\d+)\s+\d+')
+
+    highest_used_gpu_idx = 0
+
+    with open(gpu_trace, 'r') as gpu_trace:
+        for line in gpu_trace:
+            if match := pat.match(line):
+                highest_used_gpu_idx = max(match.group(1), highest_used_gpu_idx)
+
+    return highest_used_gpu_idx + 1
+
+
 def sliding_window(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
     return izip_longest(*args, fillvalue=fillvalue)
 
 
-def calc_avg_gpu_usage(gpu_trace, num_gpus):
+def calc_avg_gpu_usage(gpu_trace):
 
     data_dir = os.path.dirname(gpu_trace)
 
@@ -25,7 +68,7 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
     outcsv.write(",".join(headers) + "\n")
 
     line_no = 0
-
+    num_gpus = get_num_gpus(gpu_trace)
     # Read the file num_gpus lines at a time. 
     # Compute the average for all columns and write out
     for line_batch in sliding_window(infile, num_gpus):
@@ -69,23 +112,6 @@ def calc_avg_gpu_usage(gpu_trace, num_gpus):
 
     infile.close()
     outcsv.close()
-
-
-def get_date(raw_traces_dir):
-    """
-    Returns the date of the traces in YYYY-MM-DD format
-    Fetches it from the raw gpu trace as it will always contain it,
-    even if there was no GPU activity for this run (e.g. DLIO)
-    """
-    gpu_trace_path = os.path.join(raw_traces_dir, "gpu.out")
-    infile = open(gpu_trace_path, "r")
-    for line in infile:
-        cols = " ".join(line.split()).replace("-", "0").split(" ")
-        if cols[2] == "0":
-            # Combine cols 0 and 1 into a UTC timestamp
-            date = cols[0]
-            date = f"{date[0:4]}-{date[4:6]}-{date[6:8]}"
-            return np.datetime64(date)
 
 
 def split_cpu_trace_line_cols(line):
@@ -164,7 +190,6 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Outputs CSV files of average GPU and CPU use.")
     p.add_argument("raw_traces_dir", help="Directory of raw trace data")
     p.add_argument("ta_traces_dir", help="Directory of time aligned traces")
-    p.add_argument("num_gpus", type=int, help="The number of GPUs used for training")
     args = p.parse_args()
 
     if not os.path.isdir(args.raw_traces_dir):
@@ -175,13 +200,13 @@ if __name__ == "__main__":
         print(f"Invalid raw traces directory given")
         exit(-1) 
 
-    current_date = get_date(args.raw_traces_dir)
+    current_date = get_local_date(args.raw_traces_dir)
 
     gpu_trace = os.path.join(args.ta_traces_dir, "gpu_data", "gpu.all")
     cpu_trace = os.path.join(args.ta_traces_dir, "cpu_data", "cpu.all")
 
     print("Calculating average GPU usage")
-    calc_avg_gpu_usage(gpu_trace, args.num_gpus)
+    calc_avg_gpu_usage(gpu_trace)
 
     print("Processing CPU data")
     process_cpu_data(cpu_trace, current_date)

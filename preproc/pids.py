@@ -3,11 +3,81 @@ import re
 import json
 import argparse
 import pathlib
+
+from os import path
 from .utilities import get_fields
 
 
+
+def get_pids(raw_traces_dir, preproc_traces_dir):
+    """
+    Determine the workload PIDs from processed read and raw GPU trace.
+    Returns the parent PIDs, data-loader PIDs if present, and PIDs to ingore.
+    """
+    gpu_trace = path.join(raw_traces_dir, "gpu.out")
+    read_trace = path.join(preproc_traces_dir, "read_UTC.out")
+
+    pids_gpu = get_pids_from_gpu_trace(gpu_trace)
+    pids_read = get_pids_from_read_trace(read_trace)
+
+    # We usually filter the read trace by process name, with
+    # an appropriate name for each workload. So the PIDs present
+    # in it should all be related to the workload.
+    # The GPU trace however, could contain other unrelated PIDs if
+    # another unrelated process was using the GPU at the same time
+    # 
+    # Additionally, in the presence of PyTorch data-loading workers,
+    # the read trace will contain many more PIDs vs the GPU trace,
+    # which will show only the GPU-bound PIDs, parents of the data-loaders.
+    #
+    # We want to be able to distinguish the parent processes from the workers
+    # and filter out any unrelated processes from the GPU trace
+    #
+    # Given all of this, let S_READ be the set of PIDs extracted from the 
+    # read trace, and S_GPU the set of PIDs extracted from the GPU trace. 
+    # We will say that
+    #       S_GPU intersect S_READ = parent processes
+    #       S_READ \ S_GPU = all data-loading workers
+    #       S_GPU \ S_READ = unrelated PIDs we should ignore            
+
+    parent_pids = pids_gpu.intersection(pids_read)
+    dataloader_pids = pids_read.difference(pids_gpu)
+    ignore_pids = pids_gpu.difference(pids_read)
+
+    print(f'Parent PIDs ({len(parent_pids)}):\n{parent_pids}')
+    print(f'Dataloader PIDs ({len(dataloader_pids)}):\n{dataloader_pids}')
+    print(f'Ignore PIDs ({len(ignore_pids)}):\n{ignore_pids}')
+    
+    return parent_pids, dataloader_pids, ignore_pids
+
+
 def get_pids_from_read_trace(read_trace):
-    pass
+    pids = set()
+    with open(read_trace, 'r') as trace:
+        for line in trace:
+            data = get_fields(line)
+            pid = data[1]
+
+            if pid not in pids:
+                pids.add(pid)
+    print(f'Found {len(pids)} unique PIDs in the read trace.')
+
+    return pids
+
+
+def get_pids_from_gpu_trace(gpu_trace):
+    pat = re.compile(r'^\s+\d{8}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+(\d+)')
+    pids = set()
+    with open(gpu_trace, 'r') as gpu_trace:
+        for line in gpu_trace:
+            if match := pat.match(line):
+                pid = match.group(1)
+                if pid not in pids:
+                    pids.add(pid)
+    print(f'Found {len(pids)} unique PIDs in the GPU trace.')
+
+    return pids
+
 
 def main(data_dir, output_dir):
 
