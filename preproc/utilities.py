@@ -17,6 +17,9 @@ def get_iostat_trace(traces_dir):
 def get_time_align_trace(traces_dir):
     return os.path.join(traces_dir, 'trace_time_align.out')
 
+def get_bio_trace(traces_dir):
+    return os.path.join(traces_dir, 'bio.out')
+
 def get_gpu_trace(traces_dir):
     return os.path.join(traces_dir, 'gpu.out')
 

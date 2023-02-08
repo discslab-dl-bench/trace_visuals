@@ -14,7 +14,7 @@ def get_pids(raw_traces_dir, preproc_traces_dir):
     Returns the parent PIDs, data-loader PIDs if present, and PIDs to ingore.
     """
     gpu_trace = path.join(raw_traces_dir, "gpu.out")
-    read_trace = path.join(preproc_traces_dir, "read_UTC.out")
+    read_trace = path.join(preproc_traces_dir, "read.out")
 
     pids_gpu, ignore_pids = get_pids_from_raw_gpu_trace(gpu_trace)
     pids_read = get_pids_from_read_trace(read_trace)

@@ -1,7 +1,7 @@
 import os
 import re
+import json
 import pathlib
-
 import numpy as np
 
 from pprint import PrettyPrinter
@@ -15,9 +15,14 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
     """
     Returns a map of pid -> file used to separate the traces into individual timelines for plotting.
     """
+
+    plotting_info = {}
+
     if config == "all_combined":
         # Map the same single file to each pid in parents U dataloaders
-        return {pid : os.path.join(outdir, 'combined.log') for pid in parent_pids.union(dataloader_pids)}
+        mapping = {pid : os.path.join(outdir, 'combined.log') for pid in parent_pids.union(dataloader_pids)}
+        plotting_info['combined.log'] = 'All Workers'
+
     elif config == "each_parent":
         # In this config, we plot each parent individually
         # and merge with their dataloaders (if present)
@@ -37,10 +42,13 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
 
         mapping = {}
         files = []
+
         for i, pid in enumerate(parent_pids):
             file = os.path.join(outdir, f'parent_{i}.log')
             mapping[pid] = file
             files.append(file)
+
+            plotting_info[f'parent_{i}.log'] = f'Worker {i}'
 
         if len(dataloader_pids) > 0:
             if num_loaders % num_parents != 0:
@@ -51,15 +59,18 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
                 print(f'Associating loader pid {loader_pid} to file {file_idx}')
                 mapping[loader_pid] = files[file_idx]
 
-        return mapping
+        
+
     elif config == "parents_combined_loaders_combined":
 
         # In this config we have 2 files, 1 for all parents combined, another for all loaders combined
         # This config is only presesent if loaders are present.
-        mapping = {pid : os.path.join(outdir, 'parent_0.log') for pid in parent_pids}
+        mapping = {pid : os.path.join(outdir, 'parents_0.log') for pid in parent_pids}
         for pid in dataloader_pids:
-            mapping[pid] = os.path.join(outdir, 'loader_0.log')
-        return mapping
+            mapping[pid] = os.path.join(outdir, 'loaders_0.log')
+
+        plotting_info['parents_0.log'] = 'All Workers'
+        plotting_info['loaders_0.log'] = 'All Dataloaders'
 
     elif config == "each_parent_and_their_loaders":
         # Only present if len(dataloader_pids) > 0
@@ -89,14 +100,22 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
 
         for i, pid in enumerate(parent_pids):
             mapping[pid] = os.path.join(outdir, f'parent_{i}.log')
+            plotting_info[f'parent_{i}.log'] = f'Worker {i}'
 
         for i, pid in enumerate(dataloader_pids):
             mapping[pid] = os.path.join(outdir, f'loader_{i % num_parents}.log')
 
-        return mapping
+            if f'loader_{i % num_parents}.log' not in plotting_info:
+                plotting_info[f'loader_{i % num_parents}.log'] = f'Loader {i % num_parents}'
+
     else:
         raise Exception("Uknown PID splitting configuration!")
+    
+    # Generate a filename -> pretty name for plotting
+    with open(os.path.join(outdir, 'plotting_info.json'), 'w') as outfile:
+        json.dump(plotting_info, outfile, indent=4)
 
+    return mapping
 
 
 def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pids: set, ignore_pids: set, TRACES, TRACE_LATENCY_COLUMN_IDX):
@@ -133,7 +152,7 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
         pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
 
         mapping = get_pid_file_mapping(parent_pids, dataloader_pids, plot_config, outdir)
-        pp.pprint(mapping)
+        # pp.pprint(mapping)
 
         # Create shared lists to hold all the data
         # mapping.values() has multiple instances of the same files
@@ -145,7 +164,7 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
         for trace in TRACES:
             print(f"Preparing trace {trace} for timeline plot")
 
-            tracefile = os.path.join(traces_dir, f'{trace}_UTC.out')
+            tracefile = os.path.join(traces_dir, f'{trace}.out')
 
             with open(tracefile, 'r') as tracefile:
 

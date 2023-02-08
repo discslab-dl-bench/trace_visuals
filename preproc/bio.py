@@ -2,7 +2,7 @@ import os
 import argparse
 import statistics
 
-from .utilities import plot_histogram, get_fields
+from .utilities import get_bio_trace, plot_histogram, get_fields
 
 # Column index of latency in the bio trace.
 # Latest columns are
@@ -23,12 +23,13 @@ def _get_p99_latency(bio_trace, traces_dir) -> int:
     return p99
 
 
-def process_long_bio_calls(bio_trace, traces_dir, verbose=False) -> None:
+def process_long_bio_calls(traces_dir, verbose=False) -> None:
     """
     Go through the bio trace and detect/remove all bio calls above p99 latency.
     We do this for timeline plot legibility.
     The original trace is backed-up.
     """
+    bio_trace = get_bio_trace(traces_dir)
     tmp_out = bio_trace + "_tmp"
 
     p99 = _get_p99_latency(bio_trace, traces_dir)
@@ -69,7 +70,7 @@ if __name__ == "__main__":
         print(f"ERROR: Invalid trace directory {args.traces_dir}")
         exit(-1) 
 
-    bio_trace = os.path.join(args.traces_dir, "bio_UTC.out")
+    bio_trace = os.path.join(args.traces_dir, "bio.out")
     if not os.path.isfile(bio_trace):
         print(f"ERROR: Invalid bio trace {bio_trace}")
         exit(-1) 

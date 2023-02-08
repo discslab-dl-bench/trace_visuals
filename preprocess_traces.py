@@ -2,9 +2,8 @@ import pathlib
 import argparse
 from os import path
 
-
 from preproc.mllog import process_mllog
-from preproc.gpu import filter_gpu_trace, calc_avg_gpu_usage, process_gpu_trace
+from preproc.gpu import process_gpu_trace
 from preproc.cpu import process_cpu_trace
 from preproc.align_time import convert_traces_timestamp_to_UTC
 from preproc.bio import process_long_bio_calls
@@ -13,7 +12,8 @@ from preproc.iostat import iostat_to_csv
 from preproc.utilities import iostat_trace_is_present
 from preproc.traces import prepare_traces_for_timeline_plot
 
-# We are in eastern time, so UTC-4 during DST and UTC-5 otherwise
+# Depends on machine local time setting
+# For discslab-server2, UTC-4 during Daylight Savings Time and UTC-5 otherwise
 UTC_TIME_DELTA = 5
 
 # Add any new trace we want to time align here
@@ -35,7 +35,6 @@ TRACE_LATENCY_COLUMN_IDX = {
     'read': 4,
     'write': 4,
 }
-    
 
 
 def verify_all_traces_present(traces_dir, workload) -> bool:
@@ -69,8 +68,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload):
     convert_traces_timestamp_to_UTC(traces_dir, preproc_traces_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
 
     # Remove p99 latency bio calls
-    bio_trace_UTC = path.join(preproc_traces_dir, "bio_UTC.out")
-    process_long_bio_calls(bio_trace_UTC, preproc_traces_dir, verbose=True)
+    process_long_bio_calls(preproc_traces_dir)
 
     # Get the PIDs
     parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir)

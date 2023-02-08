@@ -51,6 +51,12 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         for line in log:
             if re.match(pattern, line):
                 line = line.replace(":::MLLOG ", "").rstrip()
+
+                # Convert the UNIX timestamp to UTC before writing back
+                data = json.loads(line)
+                data['time_ms'] = str(np.datetime64(data["time_ms"], "ms"))
+                line = json.dumps(data)
+
                 line += ',\n'
                 outfile.write(line)
 
@@ -83,9 +89,7 @@ def create_timeline_csv(preprocessed_traces_dir, workload):
 
         for i, log in enumerate(all_logs):
 
-            # UNIX timestamps are in milliseconds and already in UTC
-            ux_time = np.datetime64(log["time_ms"], "ms")
-
+            timestamp = log["time_ms"]
             key_parts = log["key"].split("_")
 
             evt = key_parts[0].upper()
@@ -98,13 +102,13 @@ def create_timeline_csv(preprocessed_traces_dir, workload):
                 else:
                     # Label the first epoch differently
                     if evt == "EPOCH" and have_not_seen_epoch:
-                        outfile.write(f"{started_events[evt]},{ux_time},EPOCH\n")
+                        outfile.write(f"{started_events[evt]},{timestamp},EPOCH\n")
                         have_not_seen_epoch = False
                     else:
-                        outfile.write(f"{started_events[evt]},{ux_time},{evt}\n")
+                        outfile.write(f"{started_events[evt]},{timestamp},{evt}\n")
                     del started_events[evt]
             else:
-                started_events[evt] = ux_time
+                started_events[evt] = timestamp
 
 
 if __name__ == "__main__":
