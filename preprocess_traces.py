@@ -61,13 +61,16 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload):
     First, process the application log
     """
     # Process the MLLOG first
-    # Cut out everything before initialization before time-aligning traces
+    if workload == 'dlio':
+        print(f'DLIO log processing not implemented yet')
+
     process_mllog(traces_dir, output_dir, workload)
 
     # Time-align traces
+    # Cut out everything captured before the MLLOG initialization event
     convert_traces_timestamp_to_UTC(traces_dir, preproc_traces_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
 
-    # Remove p99 latency bio calls
+    # Remove p99 latency bio calls - for plotting ~aesthetics~
     process_long_bio_calls(preproc_traces_dir)
 
     # Get the PIDs
@@ -90,7 +93,7 @@ if __name__=='__main__':
     p = argparse.ArgumentParser(description="Preprocess the output of the tracing scripts for plotting")
     p.add_argument("traces_dir", help="Directory where raw traces are")
     p.add_argument("workload", help="Which workload was run", choices=['unet3d', 'bert', 'dlrm', 'dlio'])
-    p.add_argument("-o", "--output-dir", default="data_processed", help="Directory where to write the time aligned traces.")
+    p.add_argument("-o", "--output-dir", default="data_processed", help="Processed traces directory. Default is 'data_processed/'")
     args = p.parse_args()
 
     traces_dir = args.traces_dir
