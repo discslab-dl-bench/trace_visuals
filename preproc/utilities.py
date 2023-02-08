@@ -1,9 +1,36 @@
-import re
 import os
 import pathlib
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+from itertools import zip_longest
+
+
+def iostat_trace_is_present(traces_dir):
+    iostat_trace = get_iostat_trace(traces_dir)
+    return os.path.isfile(iostat_trace)
+
+def get_iostat_trace(traces_dir):
+    return os.path.join(traces_dir, 'iostat.json')
+
+def get_time_align_trace(traces_dir):
+    return os.path.join(traces_dir, 'trace_time_align.out')
+
+def get_gpu_trace(traces_dir):
+    return os.path.join(traces_dir, 'gpu.out')
+
+def get_cpu_trace(traces_dir):
+    return os.path.join(traces_dir, 'cpu.out')
+
+
+def sliding_window(iterable, n, fillvalue=None):
+    """
+    Creates an array of n parallel iterators, that are 
+    called in round-robin fashion by zip_longest.
+    """
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
 
 
 def get_fields(line):

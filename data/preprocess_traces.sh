@@ -66,6 +66,7 @@ echo -e "####################################################################"
 ./prepare_traces_for_timelines.sh $ta_outdir
 
 
+
 echo -e "#####################################################################"
 echo -e "cpu.sh, gpu.sh, cpu_gpu.py: Preparing CPU and GPU traces for plotting"
 echo -e "#####################################################################"

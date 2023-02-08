@@ -5,12 +5,12 @@ import numpy as np
 import argparse
 
 from .mllog import get_init_start_time
-from .utilities import get_fields
-from .cpu_gpu import get_local_date
+from .utilities import get_fields, get_gpu_trace, get_time_align_trace
+from .gpu import get_local_date_from_raw
 
 MAX_ERR_COUNT = 1500
 
-def _get_ref_ts(timealign_trace, gpu_trace):
+def _get_ref_ts(traces_dir):
     """
     This function reads the time align trace and looks at every seconds transition
     that was captured. It looks at the difference between the nsecs timestamp before and after
@@ -19,54 +19,56 @@ def _get_ref_ts(timealign_trace, gpu_trace):
     with the given second in localtime. 
     """
 
-    timealign_trace = open(timealign_trace, "r")
+    timealign_trace = get_time_align_trace(traces_dir)
+    gpu_trace = get_gpu_trace(traces_dir)
     
-    # Expected trace line format: a nsecs since boot timestamp followed by a local time
-    pat = re.compile(r'(\d+)\s+(\d{2}:\d{2}:\d{2})\n')
+    with open(timealign_trace, 'r') as timealign_trace:
+        # Expected trace line format: a nsecs since boot timestamp followed by a local time
+        pat = re.compile(r'(\d+)\s+(\d{2}:\d{2}:\d{2})\n')
 
-    min_ts_diff = float('inf')
-    min_lt_0 = None
-    min_lt_1 = None
-    
-    # Discard the first lines of the trace file until we get content
-    line = timealign_trace.readline()
-    while not pat.match(line):
+        min_ts_diff = float('inf')
+        min_lt_0 = None
+        min_lt_1 = None
+        
+        # Discard the first lines of the trace file until we get content
         line = timealign_trace.readline()
+        while not pat.match(line):
+            line = timealign_trace.readline()
 
-    # Get the initial local time
-    prev_lt = pat.match(line).group(2) # local time
-    # Keep iterating on the file until we find the next seconds transition
-    prev_ts = pat.match(line).group(1)
+        # Get the initial local time
+        prev_lt = pat.match(line).group(2) # local time
+        # Keep iterating on the file until we find the next seconds transition
+        prev_ts = pat.match(line).group(1)
 
-    for line in timealign_trace:
-        if match := pat.match(line):
-            ts = match.group(1) # time stamp (nsecs since boot)
-            lt = match.group(2) # local time
+        for line in timealign_trace:
+            if match := pat.match(line):
+                ts = match.group(1) # time stamp (nsecs since boot)
+                lt = match.group(2) # local time
 
-            # If the current line's local time is not equal to the saved one
-            # then we have a seconds transition. Subtract the current timestamp
-            # from the previous one and save the smallest we find.
-            if lt != prev_lt:
-                diff = int(ts) - int(prev_ts)
+                # If the current line's local time is not equal to the saved one
+                # then we have a seconds transition. Subtract the current timestamp
+                # from the previous one and save the smallest we find.
+                if lt != prev_lt:
+                    diff = int(ts) - int(prev_ts)
 
-                if diff < min_ts_diff:
-                    min_ts_diff = diff
+                    if diff < min_ts_diff:
+                        min_ts_diff = diff
 
-                    min_ts_1 = ts
-                    min_lt_0 = prev_lt
-                    min_lt_1 = lt
-                    print(f"New min timestamp diff found btw {prev_lt} and {lt}: {min_ts_diff}")
+                        min_ts_1 = ts
+                        min_lt_0 = prev_lt
+                        min_lt_1 = lt
+                        print(f"New min timestamp diff found btw {prev_lt} and {lt}: {min_ts_diff}")
 
-                prev_lt = lt
+                    prev_lt = lt
 
-            prev_ts = ts
+                prev_ts = ts
 
     print(f"\nMin timestamp diff is {min_ts_diff} ns between {min_lt_0} and {min_lt_1}")
 
     ref_ts = int(min_ts_1) - (min_ts_diff // 2)
     ref_lt = min_lt_1
 
-    localdate = get_local_date(gpu_trace)
+    localdate = get_local_date_from_raw(gpu_trace)
     local_time_str = f"{localdate}T{ref_lt}.000000000"
     ref_local_time = np.datetime64(local_time_str)
     print(f"Alignment DONE: {ref_ts} corresponds to {ref_local_time}\n")
@@ -80,9 +82,7 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
     timestamp and local time, then convert the timestamps to UTC.
     """
 
-    time_align_trace = os.path.join(traces_dir, "trace_time_align.out")
-    gpu_trace = os.path.join(traces_dir, "gpu.out")
-    ref_ts, ref_t = _get_ref_ts(time_align_trace, gpu_trace)
+    ref_ts, ref_t = _get_ref_ts(traces_dir)
 
     # Gets the UTC timestamp of the INIT event in mllog
     # We want to filter out every thing before this event.

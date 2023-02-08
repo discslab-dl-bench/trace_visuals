@@ -21,11 +21,13 @@ def process_mllog(traces_dir, output_dir, workload):
     create_timeline_csv(output_dir, workload)
 
 
-def get_init_start_time(preprocessed_traces_dir):
-    timeline_csv = os.path.join(preprocessed_traces_dir, "timeline", "timeline.csv")
+def get_init_start_time(preproc_traces_dir):
+    """
+    Returns the timestamp of the MLLOG INIT_START event.
+    """
+    timeline_csv = os.path.join(preproc_traces_dir, "timeline", "timeline.csv")
     with open(timeline_csv, 'r') as timeline:
         for line in timeline:
-            print(line)
             data = line.replace("\n", "").split(",")
             if data[2] == "INIT":
                 return np.datetime64(data[0])
