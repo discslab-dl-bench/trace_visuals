@@ -305,6 +305,22 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
         print("Skipping this graph.")
         return
 
+    if start is not None:
+        df = df[df["start_date"] >= np.datetime64(start)]
+    if end is not None:
+        df = df[df["end_date"] <= np.datetime64(end)]
+
+    # If the DataFrame is empty after filtering, skip
+    if len(df) == 0:
+        print(f"This timerange is empty for pid {timeline_file}. Skipping.")
+        return
+
+    # Can't define this earlier
+    masks = {
+        "BIO": (df["event"] == "BIOR") | (df["event"] == "BIOW"),
+        "OPEN": (df["event"] == "OPENAT"),
+        "R/W": (df["event"] == "READ") | (df["event"] == "WRITE"),
+    }
 
 def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=None, end=None, xformat='%H:%M', vlines=None):
     """
@@ -631,7 +647,5 @@ if __name__ == "__main__":
     #     "day_4": np.datetime64("2022-09-29T20:24:18.937630143"),
     #     "day_5": np.datetime64("2022-09-29T20:33:37.386817568"),
     # }
-
-
 
 
