@@ -5,9 +5,10 @@ import pathlib
 import numpy as np
 
 
-def process_timeline(strace, outdir):
+def convert_strace_timestamps_to_utc(strace, outdir):
     """
-    Convert the UNIX timestamps of the mllog to UTC timestamp
+    Convert the UNIX timestamps of the strace log. 
+    This function assumes strace was ran like `strace -ttt ...`.
     """
     infile = open(strace, "r")
     outfile = open(f"{outdir}/strace_utc.out", "w")
@@ -20,7 +21,8 @@ def process_timeline(strace, outdir):
             print(f"\t line {i} is empty. Continuing.")
             continue
 
-        # UNIX timestamps are in microseconds, have a decimal that must be removed
+        # The strace UNIX timestamps are in microseconds and 
+        # have a decimal that must be removed
         ts = np.datetime64(int(cols[1].replace(".", "")), "us")
         cols[1] = np.datetime_as_string(ts)
 
@@ -41,4 +43,4 @@ if __name__ == "__main__":
         print(f"Output dir does not exist. Creating.")
         pathlib.Path(args.data_dir).mkdir(exist_ok=True, parents=True)
 
-    process_timeline(args.strace, args.outdir)
+    convert_strace_timestamps_to_utc(args.strace, args.outdir)

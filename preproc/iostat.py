@@ -5,20 +5,22 @@ import pathlib
 import numpy as np
 
 from datetime import datetime
+from .utilities import get_iostat_trace
 
-# We are in eastern time, so UTC-4 during DST, UTC-5 otherwise
-UTC_TIME_DELTA = 5
 
-def iostat_to_csv(iostat_log, outdir):
+def iostat_to_csv(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
     """
     Convert the timestamp of the iostat log to UTC
     Write out a csv containing the recorded metrics for each disk
     """
 
+    iostat_log = get_iostat_trace(raw_traces_dir)
     with open(iostat_log, "r") as infile:
         log = json.load(infile)
 
-    with open(f"{outdir}/iostat.csv", "w") as outcsv:
+    outcsv = os.path.join(preproc_traces_dir, 'timeline', 'iostat.csv')
+    
+    with open(outcsv, "w") as outcsv:
         
         # Write the header
         first_diskstat = log["sysstat"]["hosts"][0]["statistics"][0]["disk"][0]

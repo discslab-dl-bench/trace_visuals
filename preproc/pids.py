@@ -4,13 +4,107 @@ import json
 import argparse
 import pathlib
 
-def get_fields(line):
+from os import path
+from .utilities import get_fields
+
+
+def get_pids(raw_traces_dir, preproc_traces_dir):
     """
-        Split the line on whitespace, join it on a single space then split it again.
-        This makes it return nicely delimited tokens because the original number of
-        spaces is variable.
+    Determine the workload PIDs from processed read and raw GPU trace.
+    Returns the parent PIDs, data-loader PIDs if present, and PIDs to ingore.
     """
-    return " ".join(line.split()).split(" ")
+    gpu_trace = path.join(raw_traces_dir, "gpu.out")
+    read_trace = path.join(preproc_traces_dir, "read.out")
+
+    pids_gpu, ignore_pids = get_pids_from_raw_gpu_trace(gpu_trace)
+    pids_read = get_pids_from_read_trace(read_trace)
+
+    # We usually filter the read trace by process name, with
+    # an appropriate name for each workload. So the PIDs present
+    # in it should all be related to the workload.
+    #
+    # The GPU trace however, could contain other unrelated PIDs if
+    # another process was using the GPUs at the same time.
+    # We potentially obtained some PIDs to ignore after parsing the GPU
+    # trace.
+    # 
+    # Additionally, in the presence of PyTorch data-loading workers,
+    # the read trace will contain many more PIDs vs the GPU trace,
+    # which will show only the GPU-bound PIDs, parents of the data-loaders.
+    #
+    # We want to be able to distinguish the parent processes from the workers
+    # and filter out any unrelated processes from the GPU trace
+    #
+    # Given all of this, let S_READ be the set of PIDs extracted from the 
+    # read trace, S_GPU the set of PIDs extracted from the GPU trace, and
+    # S_IGNORE the set of PIDs to ignore determined by the GPU trace.
+    #
+    # We will say that:
+    #       S_GPU intersect S_READ = parent processes
+    #       S_READ \ S_GPU = all data-loading workers
+    #       S_IGNORE + (S_GPU \ S_READ) = processes to ignore            
+
+    parent_pids = pids_gpu.intersection(pids_read)
+    dataloader_pids = pids_read.difference(pids_gpu)
+    ignore_pids = ignore_pids.union(pids_gpu.difference(pids_read))
+
+    print(f'Parent PIDs ({len(parent_pids)}):\n{parent_pids}')
+    print(f'Dataloader PIDs ({len(dataloader_pids)}):\n{dataloader_pids}')
+    print(f'Ignore PIDs ({len(ignore_pids)}):\n{ignore_pids}')
+    
+    return parent_pids, dataloader_pids, ignore_pids
+
+
+def get_pids_from_read_trace(read_trace):
+    pids = set()
+    with open(read_trace, 'r') as trace:
+        for line in trace:
+            data = get_fields(line)
+            pid = data[1]
+
+            if pid not in pids:
+                pids.add(pid)
+    print(f'Found {len(pids)} unique PIDs in the read trace.')
+
+    return pids
+
+
+def get_pids_from_raw_gpu_trace(gpu_trace):
+    """
+    Extract PIDs from GPU trace.
+    Will skip the later PID if multiple are found running on the same GPU.
+    """
+    # Line format is 
+    # 20230118   09:47:05      4    2647252     C     0     0     -     -   308   python 
+    pat = re.compile(r'^\s+\d{8}\s+\d{2}:\d{2}:\d{2}\s+(\d+)\s+(\d+)')
+    
+    ignore_pids = set()
+
+    # We map each GPU to a PID
+    # We don't allow a GPU to have multiple PIDs (would indicate multiple workloads running at the same time)
+    # but we could have a single PID using multiple GPUs e.g. DLRM or BERT with MirroredDistributionStrategy
+    gpu_to_pid = {}
+
+    last_line = ""
+
+    with open(gpu_trace, 'r') as gpu_trace:
+        for line in gpu_trace:
+            if match := pat.match(line):
+                gpu = match.group(1)
+                pid = match.group(2)
+
+                if gpu in gpu_to_pid:
+                    if pid != gpu_to_pid[gpu]:
+                        print(f"Identified multiple processes on GPU {gpu}:\n{last_line}{line}")
+                        ignore_pids.add(pid)
+                else:
+                    gpu_to_pid[gpu] = pid
+                
+                last_line = line
+
+    pids = set(gpu_to_pid.values())
+    print(f"Found {len(pids)} GPU-bound PIDs, {len(ignore_pids)} PID{'s' if len(ignore_pids) > 1 else ''} to ingore in the GPU trace.")
+    return pids, ignore_pids
 
 
 def main(data_dir, output_dir):
@@ -186,8 +280,6 @@ def main(data_dir, output_dir):
         justpidsfile.write(f"{pid}\n")
                 
 if __name__ == "__main__":
-
-
     p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
     p.add_argument("data_dir", help="Raw traces directory")
     p.add_argument("output_dir", help="output directory")

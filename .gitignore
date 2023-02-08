@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 plots/
+data_processed/
 
 BERT_*
 DLRM_*
@@ -18,8 +19,9 @@ data/2gpus_*
 data/1gpu_*
 data/1gpus_*
 data/results
+**/weird_*
 
-data/ta_*
+**/ta_*
 data/*.out
 data/*_data/
 data/*_data_*/

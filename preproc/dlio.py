@@ -16,9 +16,10 @@ def find_log(data_dir):
                 if re.findall(r"Starting epoch",l):
                     return log_file
 
+
 def generate_csv(log_file_name, output_dir):
     '''
-    Generate timeline.csv file for plotting
+    Generate timeline.csv file for plotting from DLIO log
     '''
 
     outfile = open(f"{output_dir}/timeline.csv", "w")
