@@ -63,7 +63,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload):
     # Process the MLLOG first
     if workload == 'dlio':
         print(f'DLIO log processing not implemented yet')
-
+    
     process_mllog(traces_dir, output_dir, workload)
 
     # Time-align traces

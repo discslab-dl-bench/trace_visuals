@@ -5,7 +5,7 @@ import pathlib
 import argparse
 import numpy as np
 import pandas as pd
-from os.path import isfile, isdir, join
+from os.path import isfile, isdir, join, dirname
 from matplotlib import dates as mdates, pyplot as plt, patches as mpatches
 
 
@@ -31,6 +31,7 @@ def plot_all_configs(data_dir, workload, title, all_plots=False, **kwargs):
                     continue
                 
                 print(f'Zooming into {zoom_name}')
+
                 plot_pids_timeline_cpu_gpu(
                     data_dir,
                     timeline_dir,
@@ -473,7 +474,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
     elif workload == "dlrm":
         mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
     else:
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", CHECKPOINT="mediumvioletred")
+        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", BLOCK="gold", CHECKPOINT="mediumvioletred")
 
 
     fig, axs = plt.subplots(
@@ -498,22 +499,24 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
         i_ax += 1
         plot_iostat_info(data_dir, axs[i_ax], fontsize=fontsize, start=start, end=end)
     
-    i_ax += 1
+
     for i, timeline_file in enumerate(timeline_files):
+        i_ax += 1
         plot_legend = False
 
         # Only plot the legend for the middle timeline plot
         if (len(timeline_files) > 1 and i == len(timeline_files) // 2) or (len(timeline_files) == 1 and i == 0):
             plot_legend = True
 
-        plot_trace_timeline(timeline_dir, timeline_file, plotting_info, axs[i_ax + i], trace_plot_config, plot_legend, fontsize=fontsize, start=start, end=end, margin=margin)
+        plot_trace_timeline(timeline_dir, timeline_file, plotting_info, axs[i_ax], trace_plot_config, plot_legend, fontsize=fontsize, start=start, end=end, margin=margin)
 
     # Should be the last axis
     i_ax += 1
     plot_mllog_events(data_dir, axs[i_ax], mllog_event_plot_config, name=name, fontsize=fontsize, start=start, end=end, vlines=vlines)
 
    
-
+   
+    data_dir = pathlib.Path(data_dir).parent.absolute()
     if not paper_version:
         fig.suptitle(title)
         output_dir = join(data_dir, 'plots', config)

@@ -21,6 +21,7 @@ optional arguments:
 
 ## Plotting the preprocessed data
 
+Plots will be created under `plots/` in the preprocessed data directory.
 ```
 $ python3 plot_timelines.py -h
 usage: plot_timelines.py [-h] [-a] data_dir {unet3d,bert,dlrm,dlio} experiment_name

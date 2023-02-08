@@ -10,7 +10,7 @@ import numpy as np
 # Workloads have different events of interst based on their inner workings
 WORKLOAD_MLLOG_REGEX_PATTERN = {
     'unet3d': r".*(init_start|init_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop).*",
-    'dlrm': r".*(init_start|init_stop|block_start|block_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
+    'dlrm': r".*(init_start|init_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
     'bert': r".*(init_start|init_stop|block_start|block_stop|checkpoint_start|checkpoint_stop).*",
     'dlio': r".*(init_start|init_stop|block_start|block_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
 }
