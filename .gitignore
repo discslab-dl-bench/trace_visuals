@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 plots/
+data_processed/
 
 BERT_*
 DLRM_*

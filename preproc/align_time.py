@@ -68,7 +68,7 @@ def _get_ref_ts(traces_dir):
     ref_ts = int(min_ts_1) - (min_ts_diff // 2)
     ref_lt = min_lt_1
 
-    localdate = get_local_date_from_raw(gpu_trace)
+    localdate = get_local_date_from_raw(traces_dir)
     local_time_str = f"{localdate}T{ref_lt}.000000000"
     ref_local_time = np.datetime64(local_time_str)
     print(f"Alignment DONE: {ref_ts} corresponds to {ref_local_time}\n")

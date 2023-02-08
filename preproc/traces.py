@@ -8,6 +8,7 @@ from pprint import PrettyPrinter
 
 from preproc.utilities import get_fields
 
+from time import perf_counter_ns
 
 
 def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir) -> dict:
@@ -48,7 +49,7 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
             for i, loader_pid in enumerate(dataloader_pids):
                 file_idx = i % num_parents
                 print(f'Associating loader pid {loader_pid} to file {file_idx}')
-                mapping[pid] = files[file_idx]
+                mapping[loader_pid] = files[file_idx]
 
         return mapping
     elif config == "parents_combined_loaders_combined":
@@ -188,9 +189,9 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
         for file in shared_lists:
             # At this point, the list contains data for each trace
             # separately. Sort them to mix the different operations
-            # THE POWER OF MODERN COMPUTERS
-            # Sorting a 20MB list in half a second!
+            t0 = perf_counter_ns()
             shared_lists[file].sort()
+            print(f'Sorted {len(shared_lists[file]):,} values in {perf_counter_ns() - t0:,} ns')
             if os.path.isfile(file):
                 os.remove(file)
             with open(file, 'w') as outfile:
