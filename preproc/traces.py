@@ -178,7 +178,6 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
                     
                     # We may still get some unknown PIDs here, just ignore them
                     if pid in mapping:
-
                         latency_idx = TRACE_LATENCY_COLUMN_IDX[trace]
                         data = get_fields(line)
                         if trace == 'bio':
@@ -205,13 +204,39 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
 
                         shared_lists[mapping[pid]].append(line)
 
+                    else:
+                        # For the bio trace, we may trace in a more permitting mode to capture async disk writes
+                        # In that case, the PID isn't known to us but we still want to log the writes to sdb 
+                        # This is because there are BIO writes happening in kworker context for the checkpoints 
+                        if trace == 'bio':
+                            # Capture the disk and op type:
+                            # 2023-01-11T04:32:31.650356119 3600534 python (sda) (R) 131072 0x23423434 414500
+                            p_bio_line = re.compile(r'^\d{4}\-\d{2}\-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{9}\s+\d+\s+[\w\.\+\-\:\/]+\s+([a-z]{3})\s+([RW])')
+                            
+                            if match := re.match(p_bio_line, line):
+                                disk = match.group(1)
+                                op_type = match.group(2)
+                                # Keep sdb writes that occured in another context
+                                # Sometimes we don't see the checkpoint writing occuring under
+                                # the workload process context.
+                                if disk == 'sdb' and op_type == 'W':
+                                    data = get_fields(line)
+                                    lat = int(data[TRACE_LATENCY_COLUMN_IDX['bio']])
+                                    end_time = np.datetime64(data[0])
+                                    line = f'{end_time - lat},{end_time},BIOW\n'
+                                    # We'll have to put it in a random pid's activity log
+                                    # we'll just take the first one
+                                    random_pid = list(mapping.keys())[0]
+                                    # print(f'associating with pid {random_pid} (file {mapping[random_pid]})')
+                                    shared_lists[mapping[random_pid]].append(line)
+
         for file in shared_lists:
             # At this point, the list contains data for each trace
             # separately. Sort them to mix the different operations
             t0 = perf_counter_ns()
             shared_lists[file].sort()
             print(f'Sorted {len(shared_lists[file]):,} values in {perf_counter_ns() - t0:,} ns')
-            if os.path.isfile(file):
-                os.remove(file)
+            # if os.path.isfile(file):
+            #     os.remove(file)
             with open(file, 'w') as outfile:
                 outfile.writelines(shared_lists[file])

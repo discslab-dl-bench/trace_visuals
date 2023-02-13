@@ -56,6 +56,8 @@ def get_pids(raw_traces_dir, preproc_traces_dir):
 
 
 def get_pids_from_read_trace(read_trace):
+    print('Extracting PIDs from read trace')
+    
     pids = set()
     with open(read_trace, 'r') as trace:
         for line in trace:
@@ -73,36 +75,46 @@ def get_pids_from_raw_gpu_trace(gpu_trace):
     """
     Extract PIDs from GPU trace.
     Will skip the later PID if multiple are found running on the same GPU.
+    Should catch differnt PIDs running alone on GPUs later in the trace though, like for BERT evaluation.
     """
+    print('Extracting PIDs from GPU trace')
     # Line format is 
-    # 20230118   09:47:05      4    2647252     C     0     0     -     -   308   python 
-    pat = re.compile(r'^\s+\d{8}\s+\d{2}:\d{2}:\d{2}\s+(\d+)\s+(\d+)')
+    # 20230118   09:47:05      (4)    (2647252)     C     0     0     -     -   308   python 
+    pat = re.compile(r'^\s+\d{8}\s+\d{2}:\d{2}:\d{2}\s+(\d+)\s+(\d+|\-)')
     
     ignore_pids = set()
 
     # We map each GPU to a PID
     # We don't allow a GPU to have multiple PIDs (would indicate multiple workloads running at the same time)
     # but we could have a single PID using multiple GPUs e.g. DLRM or BERT with MirroredDistributionStrategy
-    gpu_to_pid = {}
+    pids = set()
 
     last_line = ""
+
+    prev_gpu_idx = -1
 
     with open(gpu_trace, 'r') as gpu_trace:
         for line in gpu_trace:
             if match := pat.match(line):
                 gpu = match.group(1)
                 pid = match.group(2)
-
-                if gpu in gpu_to_pid:
-                    if pid != gpu_to_pid[gpu]:
-                        print(f"Identified multiple processes on GPU {gpu}:\n{last_line}{line}")
+                
+                # Lines with no processes on GPU have '-' as PID
+                if pid != '-':
+                    # If the current line is for the same GPU as the previous line,
+                    # it means two processes are running on the same GPU, which should not 
+                    # happen for our workloads. It would indicate someone else running 
+                    # a workload at the same time. Ignore the second line's process.
+                    if gpu == prev_gpu_idx:
+                        print(f"Identified concurrent process on GPU {gpu}:\n{last_line}{line}")
                         ignore_pids.add(pid)
-                else:
-                    gpu_to_pid[gpu] = pid
+                    else:
+                        if pid not in pids:
+                            pids.add(pid)
                 
                 last_line = line
+                prev_gpu_idx = gpu
 
-    pids = set(gpu_to_pid.values())
     print(f"Found {len(pids)} GPU-bound PIDs, {len(ignore_pids)} PID{'s' if len(ignore_pids) > 1 else ''} to ingore in the GPU trace.")
     return pids, ignore_pids
 
@@ -278,24 +290,31 @@ def main(data_dir, output_dir):
     
     for pid in pid_names.keys():
         justpidsfile.write(f"{pid}\n")
-                
+
+
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
-    p.add_argument("data_dir", help="Raw traces directory")
-    p.add_argument("output_dir", help="output directory")
-    args = p.parse_args()
 
-    if not os.path.isdir(args.data_dir):
-        print(f"ERROR: Invalid data dir given")
-        exit(-1) 
+    pids, ignore_pids = get_pids_from_raw_gpu_trace('test_data/gpu_w_multiple_procs')
+    assert pids == {'2720663', '2720662', '2720661'}
+    assert ignore_pids == {'3333333'}
+    print("GPU from nvidia-smi trace test PASS")
+
+    # p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
+    # p.add_argument("data_dir", help="Raw traces directory")
+    # p.add_argument("output_dir", help="output directory")
+    # args = p.parse_args()
+
+    # if not os.path.isdir(args.data_dir):
+    #     print(f"ERROR: Invalid data dir given")
+    #     exit(-1) 
     
-    print('#####################################################')
-    print("pid_names.py: Extracting PID information from traces")
-    print('#####################################################\n')
+    # print('#####################################################')
+    # print("pid_names.py: Extracting PID information from traces")
+    # print('#####################################################\n')
 
-    if not os.path.isdir(args.data_dir):
-        pathlib.Path(args.data_dir).mkdir(exist_ok=True, parents=True)
+    # if not os.path.isdir(args.data_dir):
+    #     pathlib.Path(args.data_dir).mkdir(exist_ok=True, parents=True)
     
-    main(args.data_dir, args.output_dir)
+    # main(args.data_dir, args.output_dir)
 
-    print("All done\n")
+    # print("All done\n")

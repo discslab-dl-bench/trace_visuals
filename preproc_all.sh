@@ -1,18 +1,27 @@
 #!/bin/bash
 
-declare -a num_gpus=(4 8)
-declare -a batch_sizes=(6)
-declare -a methods=("horovod")
+# declare -a num_gpus=(4 8)
+# declare -a batch_sizes=(6)
+# declare -a methods=("horovod")
 
-for num_gpu in "${num_gpus[@]}"
+for d in $(ls data | grep BERT_horovod)
 do  
-    for batch_size in "${batch_sizes[@]}"
-    do
-        for method in "${methods[@]}"
-        do
-            experiment_name="BERT_${method}_${num_gpus}gpu_${batch_size}b_1200steps"
-            python3 preprocess_traces.py data/${experiment_name} bert
-            python3 timeline.py data_preprocessed/${experiment_name} bert $experiment_name
-        done
-    done
+    echo $d
+    python3 preprocess_traces.py data/$d bert
+    # python3 plot_timelines.py data_processed/$d/timeline bert $d
 done
+
+
+# for d in $(ls data | grep 32ksteps)
+# do  
+#     echo $d
+#     python3 preprocess_traces.py data/$d dlrm
+#     python3 plot_timelines.py data_processed/$d/timeline dlrm $d
+# done
+
+# for d in $(ls data | grep BERT_horovod)
+# do  
+#     echo $d
+#     python3 preprocess_traces.py data/$d bert
+#     python3 plot_timelines.py data_processed/$d/timeline bert $d
+# done

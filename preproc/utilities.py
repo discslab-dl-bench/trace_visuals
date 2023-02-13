@@ -20,6 +20,9 @@ def get_time_align_trace(traces_dir):
 def get_bio_trace(traces_dir):
     return os.path.join(traces_dir, 'bio.out')
 
+def get_read_trace(traces_dir):
+    return os.path.join(traces_dir, 'read.out')
+
 def get_gpu_trace(traces_dir):
     return os.path.join(traces_dir, 'gpu.out')
 

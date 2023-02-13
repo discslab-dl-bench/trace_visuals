@@ -5,45 +5,48 @@ import pathlib
 import argparse
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
 from os.path import isfile, isdir, join, dirname
 from matplotlib import dates as mdates, pyplot as plt, patches as mpatches
 
 
-def plot_all_configs(data_dir, workload, title, all_plots=False, **kwargs):
+def plot_all_configs(data_dir, workload, title, all_plots=False, paper_only=False, **kwargs):
     """
     Create a timeline plot for every configuration present under data_dir/timeline/pid.
     Create a 'paper format' plot using the all_combined config, which should always exist.
     """
-
+    print(data_dir)
     # Each timeline configuration has a directory under data_dir/pid
     timeline_dirs = [f.path for f in os.scandir(join(data_dir, 'pid')) if f.is_dir()]
+    
+    if not paper_only:
+        for timeline_dir in timeline_dirs:
 
-    for timeline_dir in timeline_dirs:
+            plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, f'{title} Overview', name='overview', **kwargs)
 
-        plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, f'{title} Overview', name='overview', **kwargs)
+            if all_plots:
 
-        if all_plots:
+                interesting_time_ranges = get_plotting_ranges(data_dir, workload)
 
-            interesting_time_ranges = get_plotting_ranges(args.data_dir, args.workload)
+                for zoom_name, time_range in interesting_time_ranges.items():
+                    if time_range is None:
+                        continue
+                    
+                    print(f'Zooming into {zoom_name}')
 
-            for zoom_name, time_range in interesting_time_ranges.items():
-                if time_range is None:
-                    continue
-                
-                print(f'Zooming into {zoom_name}')
-
-                plot_pids_timeline_cpu_gpu(
-                    data_dir,
-                    timeline_dir,
-                    workload,
-                    title = f"{title} {zoom_name}",
-                    # filename = f"{title} {zoom_name}",
-                    name = zoom_name,
-                    start = time_range[0],
-                    end = time_range[1],
-                    xformat = "%H:%M:%S",
-                    margin = np.timedelta64(1, "s") if zoom_name != "init" else np.timedelta64(100, "ms"),
-                )
+                    plot_pids_timeline_cpu_gpu(
+                        data_dir,
+                        timeline_dir,
+                        workload,
+                        title = f"{title} {zoom_name}",
+                        # filename = f"{title} {zoom_name}",
+                        name = zoom_name,
+                        start = time_range[0],
+                        end = time_range[1],
+                        xformat = "%H:%M:%S",
+                        margin = np.timedelta64(1, "s") if zoom_name != "init" else np.timedelta64(100, "ms"),
+                    )
 
     # For the paper version, plot the all combined config
     combined_config_dir = join(data_dir, 'pid/all_combined')
@@ -51,7 +54,7 @@ def plot_all_configs(data_dir, workload, title, all_plots=False, **kwargs):
 
 
 
-def _verify_all_necessary_data_present(data_dir) -> bool:
+def _verify_all_necessary_data_present(data_dir) -> None:
     """
     Returns true if all essential data is present.
     """
@@ -75,7 +78,10 @@ def _verify_all_necessary_data_present(data_dir) -> bool:
                 print(f'ERROR: Missing plotting_info.json in {dir}')
                 success = False
 
-    return success
+    if not success:
+        exit(-1)
+    
+    print(f'All necessary data present')
 
 
 def _get_plotting_info_json(timeline_dir):
@@ -259,8 +265,8 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
     # Can't define this earlier
     masks = {
         "BIO": (df["event"] == "BIOR") | (df["event"] == "BIOW"),
-        "OPEN": (df["event"] == "OPENAT"),
-        "R/W": (df["event"] == "READ") | (df["event"] == "WRITE"),
+        # "OPEN": (df["event"] == "OPENAT"),
+        "VFS": (df["event"] == "READ") | (df["event"] == "WRITE"),
     }
 
     # Plot the events
@@ -322,13 +328,12 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
         "R/W": (df["event"] == "READ") | (df["event"] == "WRITE"),
     }
 
+
 def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=None, end=None, xformat='%H:%M', vlines=None):
     """
     Plots the timeline of MLLOG events.
     The specific events present will depend on the workload.
     """
-    print(f"Processing timeline")
-
     bar_height = plot_config['bar_height']
     ymins = plot_config['ymins']
     categories = plot_config['categories']
@@ -452,26 +457,26 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
 
     if paper_version:
         total_rows = len(timeline_files) + 2
-        gridspec_kw={"height_ratios": [1.5] * (total_rows - 1) + [0.5]}
+        gridspec_kw={"height_ratios": [1] * (total_rows - 1) + [0.5]}
         figsize = (30, (total_rows -1) * 1.5 + extra_height)
     else:
         # Check out how many rows we'll need
         if plot_iostat:
             total_rows = len(timeline_files) + 4
-            gridspec_kw={"height_ratios": [1.5] * 2 + [1.5] * 1 + [2.5] * len(timeline_files) + [1]}
+            gridspec_kw={"height_ratios": [1.5] * 2 + [1.5] * 1 + [1.5] * len(timeline_files) + [1]}
         else:
             total_rows = len(timeline_files) + 3
-            gridspec_kw={"height_ratios": [2.5] * (total_rows - 1) + [1]}
+            gridspec_kw={"height_ratios": [2] * (total_rows - 1) + [1]}
 
         figsize = (30, (total_rows -1) * 3 + extra_height)
 
     # Configure appearance of bpftrace timeline
     trace_plot_config = {
         'bar_height': 1,
-        'ymins': [0, 1, 2],
-        'categories': ["BIO", "R/W", "OPEN"],
+        'ymins': [0, 1],
+        'categories': ["BIO", "VFS"],
         'colors_dict': dict(
-            OPENAT="purple",
+            # OPENAT="purple",
             READ="dodgerblue",
             WRITE="red",
             BIOR="blue",
@@ -488,9 +493,9 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
     if workload == "unet3d":
         mllog_event_plot_config['colors_dict'] = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
     elif workload == "dlrm":
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid")
+        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
     else:
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", BLOCK="gold", CHECKPOINT="mediumvioletred")
+        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", BLOCK="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
 
 
     fig, axs = plt.subplots(
@@ -538,6 +543,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
         output_dir = join(data_dir, 'plots', config)
     else:
         output_dir = join(data_dir, 'plots_paper')
+        plt.tight_layout(pad=0.5, h_pad=0.5)
     
     # Create output directory if it doesn't exist
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -548,7 +554,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
     filename = join(output_dir, filename)
     print(f"Saving figure to {filename}\n")
 
-    plt.tight_layout(pad=0.5, h_pad=0.5)
     plt.savefig(filename, format="png", dpi=500)
 
 
@@ -608,12 +613,30 @@ def get_plotting_ranges(data_dir, workload):
     return interesting_time_ranges
 
 
+def _get_timeline_directory(data_dir):
+    data_dir = Path(data_dir)
+
+    if not data_dir.is_dir():
+        print('ERROR: Invalid data directory given')
+        exit(-1)
+    
+    if data_dir.name != 'timeline':
+        try:
+            data_dir = next(data_dir.rglob('timeline/'))
+        except:
+            print("ERROR: Data directory given does not have a timeline/ subdirectory")
+            exit(-1)
+
+    return str(data_dir)
+
+
 if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Create the timeline plots for a given run")
     p.add_argument("data_dir", help="Path to 'timeline' subdirectory in preprocessed data directory")
     p.add_argument("workload", help="Workload name", choices=['unet3d', 'bert', 'dlrm', 'dlio'])
     p.add_argument("experiment_name", help="Plot title")
+    p.add_argument("-po", "--paper-only", action="store_true", default=False, help="Generate only paper plots")
     p.add_argument("-a", "--all-plots", action="store_true", default=False, help="Generate all the default zooms into the timeline (first 5min, first epoch, etc.)")
     args = p.parse_args()
 
@@ -621,16 +644,12 @@ if __name__ == "__main__":
     workload = args.workload
     title = args.experiment_name
     all_plots = args.all_plots
+    paper_only = args.paper_only
 
-    if not os.path.isdir(data_dir):
-        print(f"ERROR: Invalid data directory")
-        exit(-1)
+    data_dir = _get_timeline_directory(args.data_dir)
+    _verify_all_necessary_data_present(data_dir)
 
-    if not _verify_all_necessary_data_present(data_dir):
-        exit(-1)
-    
-    print(f'All necessary data present')
-    plot_all_configs(data_dir, workload, title, all_plots)
+    plot_all_configs(data_dir, workload, title, all_plots, paper_only)
 
 
     exit()

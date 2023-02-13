@@ -13,7 +13,7 @@ def iostat_to_csv(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
     Convert the timestamp of the iostat log to UTC
     Write out a csv containing the recorded metrics for each disk
     """
-
+    print('Processing iostat trace')
     iostat_log = get_iostat_trace(raw_traces_dir)
     with open(iostat_log, "r") as infile:
         log = json.load(infile)

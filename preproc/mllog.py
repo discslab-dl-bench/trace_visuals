@@ -11,7 +11,7 @@ import numpy as np
 WORKLOAD_MLLOG_REGEX_PATTERN = {
     'unet3d': r".*(init_start|init_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop).*",
     'dlrm': r".*(init_start|init_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
-    'bert': r".*(init_start|init_stop|block_start|block_stop|checkpoint_start|checkpoint_stop).*",
+    'bert': r"^\[0\].*(init_start|init_stop|block_start|block_stop|checkpoint_start|checkpoint_stop|eval_start|eval_stop).*",
     'dlio': r".*(init_start|init_stop|block_start|block_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
 }
 
@@ -39,6 +39,7 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
     """
     Go through mllog, transform to valid JSON and filter events based on workload.
     """
+    print('Converting mllog to valid JSON')
     logfile = os.path.join(traces_dir, f'{workload}.log')
     outfile = os.path.join(output_dir, f'{workload}.log')
 
@@ -51,6 +52,9 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         for line in log:
             if re.match(pattern, line):
                 line = line.replace(":::MLLOG ", "").rstrip()
+                # Assuming bert is run with horovod
+                if workload == 'bert':
+                    line = line.replace('[0]', '').strip()
 
                 # Convert the UNIX timestamp to UTC before writing back
                 data = json.loads(line)
@@ -67,12 +71,19 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         # End the JSON array
         outfile.write('\n]\n')
 
+def _get_canonical_training_event(evt):
+    """
+    The three workloads don't agree what a training event looks like.
+    """
+    if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING':
+        evt = 'TRAINING'
+    return evt
 
 def create_timeline_csv(preprocessed_traces_dir, workload):
     """
     Convert the UNIX timestamps of the mllog to UTC timestamp.
     """
-
+    print('Creating a timeline.csv from mllog')
     preproc_log = os.path.join(preprocessed_traces_dir, f"{workload}.log")
 
     outdir = os.path.join(preprocessed_traces_dir, "timeline")

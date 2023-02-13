@@ -122,8 +122,6 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
     # We want to filter out every thing before this event.
     init_ts = get_init_start_time(output_dir)
 
-    print("Aligning all traces:")
-
     ref_t = ref_t + np.timedelta64(utc_timedelta, "h")
 
     # The traces have some lines at the start where we print out columns or other info
@@ -132,7 +130,7 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
 
     for trace in traces_to_align:
 
-        print(f"\tProcessing {trace}")
+        print(f"\Converting timestamps to UTC: {trace}")
         error_count = 0
         expected_num_cols = traces_expected_cols_map[trace]
 

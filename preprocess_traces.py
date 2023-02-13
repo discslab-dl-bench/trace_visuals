@@ -6,9 +6,10 @@ from preproc.mllog import process_mllog
 from preproc.gpu import process_gpu_trace
 from preproc.cpu import process_cpu_trace
 from preproc.align_time import convert_traces_timestamp_to_UTC
-from preproc.bio import process_long_bio_calls
+from preproc.bio import filter_out_unwanted_processes_from_bio, process_long_bio_calls
 from preproc.pids import get_pids
 from preproc.iostat import iostat_to_csv
+from preproc.read import process_absurdly_large_read_sizes
 from preproc.utilities import iostat_trace_is_present
 from preproc.traces import prepare_traces_for_timeline_plot
 
@@ -55,7 +56,7 @@ def verify_all_traces_present(traces_dir, workload) -> bool:
     return success
 
 
-def preprocess_traces(traces_dir, preproc_traces_dir, workload):
+def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     """
     Preprocessing pipeline.
     First, process the application log
@@ -64,28 +65,40 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload):
     if workload == 'dlio':
         print(f'DLIO log processing not implemented yet')
     
-    process_mllog(traces_dir, output_dir, workload)
+    if skip_to < 1:
+        process_mllog(traces_dir, output_dir, workload)
 
-    # Time-align traces
-    # Cut out everything captured before the MLLOG initialization event
-    convert_traces_timestamp_to_UTC(traces_dir, preproc_traces_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
-
-    # Remove p99 latency bio calls - for plotting ~aesthetics~
-    process_long_bio_calls(preproc_traces_dir)
+    if skip_to < 2:
+        # Time-align traces
+        # Cut out everything captured before the MLLOG initialization event
+        convert_traces_timestamp_to_UTC(traces_dir, preproc_traces_dir, TRACES, TRACES_AND_EXPECTED_NUM_COLUMNS, UTC_TIME_DELTA)
+    
+    # Some extra preprocessing
+    if skip_to < 3:
+        # Remove p99 latency bio calls - for plotting ~aesthetics~
+        process_long_bio_calls(preproc_traces_dir)
+        # Remove unwanted processes form the bio trace
+        filter_out_unwanted_processes_from_bio(preproc_traces_dir, workload)
+        # We sometimes get some absurdly large (i.e. > 10^20 B) returned read byes in the read trace
+        # during initialization for unet3d when it's reading /sys/class/net/eth0/speed
+        # we can consider this outliers and remove them
+        process_absurdly_large_read_sizes(preproc_traces_dir)
 
     # Get the PIDs
     parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir)
 
-    prepare_traces_for_timeline_plot(preproc_traces_dir, parent_pids, dataloader_pids, ignore_pids, TRACES, TRACE_LATENCY_COLUMN_IDX)
+    if skip_to < 4:
+        prepare_traces_for_timeline_plot(preproc_traces_dir, parent_pids, dataloader_pids, ignore_pids, TRACES, TRACE_LATENCY_COLUMN_IDX)
 
-    # Use the ignore PIDs to preprocess the GPU trace
-    process_gpu_trace(traces_dir, preproc_traces_dir, ignore_pids, UTC_TIME_DELTA)
+    if skip_to < 5:
+        # Use the ignore PIDs to preprocess the GPU trace
+        process_gpu_trace(traces_dir, preproc_traces_dir, ignore_pids, UTC_TIME_DELTA)
 
-    # CPU trace is system-wide so no PID filtering needed
-    process_cpu_trace(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
-    # Iostat trace as well, and is optional
-    if iostat_trace_is_present(traces_dir):
-        iostat_to_csv(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
+        # CPU trace is system-wide so no PID filtering needed
+        process_cpu_trace(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
+        # Iostat trace as well, and is optional
+        if iostat_trace_is_present(traces_dir):
+            iostat_to_csv(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
 
 
 
@@ -94,12 +107,14 @@ if __name__=='__main__':
     p.add_argument("traces_dir", help="Directory where raw traces are")
     p.add_argument("workload", help="Which workload was run", choices=['unet3d', 'bert', 'dlrm', 'dlio'])
     p.add_argument("-o", "--output-dir", default="data_processed", help="Processed traces directory. Default is 'data_processed/'")
+    p.add_argument("-s", "--skip-to", type=int, default=0, help="Skip to a certain step in the pipeline.")
     args = p.parse_args()
 
     traces_dir = args.traces_dir
     trace_basename = path.basename(args.traces_dir)
     output_dir = path.join(args.output_dir, trace_basename)
     workload = args.workload
+    skip_to = args.skip_to
 
     if not path.isdir(traces_dir):
         print(f"ERROR: Invalid trace directory {traces_dir}")
@@ -113,7 +128,7 @@ if __name__=='__main__':
     if not verify_all_traces_present(traces_dir, workload):
         exit(1)
 
-    preprocess_traces(traces_dir, output_dir, workload)
+    preprocess_traces(traces_dir, output_dir, workload, skip_to)
 
 
 

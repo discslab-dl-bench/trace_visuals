@@ -78,7 +78,7 @@ def filter_gpu_trace(raw_traces_dir, preproc_traces_dir, ignore_pids, UTC_TIME_D
     """
     Filters header lines, PIDs we want to ignore and events before workload initialization from gpu trace.
     """
-
+    print('Filtering GPU trace')
     init_ts = get_init_start_time(preproc_traces_dir)
 
     gpu_trace = os.path.join(raw_traces_dir, 'gpu.out')
@@ -101,7 +101,7 @@ def filter_gpu_trace(raw_traces_dir, preproc_traces_dir, ignore_pids, UTC_TIME_D
             if not re.match(p_dataline, line):
                 continue
             if ignore and re.match(p_ignore_pids, line):
-                print(f'Ignore line: {line}')
+                # print(f'Ignore line: {line}')
                 continue
             
             # Convert the timestamp to UTC and write out
@@ -121,6 +121,7 @@ def calc_avg_gpu_usage(preproc_traces_dir):
     """
     Computes the average GPU utilization, writing a CSV with the values.
     """
+    print('Computing average GPU usage')
     gpu_trace = os.path.join(preproc_traces_dir, 'gpu.out')
     outcsv = os.path.join(preproc_traces_dir, "timeline", "gpu_avg.csv")
 

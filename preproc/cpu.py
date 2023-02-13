@@ -32,6 +32,7 @@ def process_cpu_trace(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
     """
     Convert raw cpu usage data to a csv file, filtering out events before initialization
     """
+    print('Processing CPU trace')
     current_date = get_local_date_from_raw(raw_traces_dir)
     init_ts = get_init_start_time(preproc_traces_dir)
 
