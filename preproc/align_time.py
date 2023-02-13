@@ -130,7 +130,7 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
 
     for trace in traces_to_align:
 
-        print(f"\Converting timestamps to UTC: {trace}")
+        print(f"Converting timestamps to UTC: {trace}")
         error_count = 0
         expected_num_cols = traces_expected_cols_map[trace]
 

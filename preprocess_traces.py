@@ -12,6 +12,7 @@ from preproc.iostat import iostat_to_csv
 from preproc.read import process_absurdly_large_read_sizes
 from preproc.utilities import iostat_trace_is_present
 from preproc.traces import prepare_traces_for_timeline_plot
+from preproc.write import remove_logging_writes
 
 # Depends on machine local time setting
 # For discslab-server2, UTC-4 during Daylight Savings Time and UTC-5 otherwise
@@ -75,6 +76,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     
     # Some extra preprocessing
     if skip_to < 3:
+        remove_logging_writes(preproc_traces_dir, workload)
         # Remove p99 latency bio calls - for plotting ~aesthetics~
         process_long_bio_calls(preproc_traces_dir)
         # Remove unwanted processes form the bio trace
@@ -83,6 +85,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
         # during initialization for unet3d when it's reading /sys/class/net/eth0/speed
         # we can consider this outliers and remove them
         process_absurdly_large_read_sizes(preproc_traces_dir)
+
 
     # Get the PIDs
     parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir)
@@ -111,7 +114,7 @@ if __name__=='__main__':
     args = p.parse_args()
 
     traces_dir = args.traces_dir
-    trace_basename = path.basename(args.traces_dir)
+    trace_basename = pathlib.Path(args.traces_dir).name
     output_dir = path.join(args.output_dir, trace_basename)
     workload = args.workload
     skip_to = args.skip_to

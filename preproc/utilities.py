@@ -23,6 +23,9 @@ def get_bio_trace(traces_dir):
 def get_read_trace(traces_dir):
     return os.path.join(traces_dir, 'read.out')
 
+def get_write_trace(traces_dir):
+    return os.path.join(traces_dir, 'write.out')
+
 def get_gpu_trace(traces_dir):
     return os.path.join(traces_dir, 'gpu.out')
 
