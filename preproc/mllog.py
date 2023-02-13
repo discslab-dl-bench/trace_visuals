@@ -71,11 +71,12 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         # End the JSON array
         outfile.write('\n]\n')
 
-def _get_canonical_training_event(evt):
+def _get_canonical_event_name(evt):
     """
     The three workloads don't agree what a training event looks like.
     """
     if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING':
+        print(f'Converting {evt} to TRAINING')
         evt = 'TRAINING'
     return evt
 
@@ -103,7 +104,7 @@ def create_timeline_csv(preprocessed_traces_dir, workload):
             timestamp = log["time_ms"]
             key_parts = log["key"].split("_")
 
-            evt = key_parts[0].upper()
+            evt = _get_canonical_event_name(key_parts[0].upper())
             evt_type = key_parts[1].upper()
 
             if evt_type == "STOP":
@@ -111,12 +112,7 @@ def create_timeline_csv(preprocessed_traces_dir, workload):
                     print(f"WARNING: No starting event for {log['key']} at ts {log['time_ms']}\n")
                     continue
                 else:
-                    # Label the first epoch differently
-                    if evt == "EPOCH" and have_not_seen_epoch:
-                        outfile.write(f"{started_events[evt]},{timestamp},EPOCH\n")
-                        have_not_seen_epoch = False
-                    else:
-                        outfile.write(f"{started_events[evt]},{timestamp},{evt}\n")
+                    outfile.write(f"{started_events[evt]},{timestamp},{evt}\n")
                     del started_events[evt]
             else:
                 started_events[evt] = timestamp
