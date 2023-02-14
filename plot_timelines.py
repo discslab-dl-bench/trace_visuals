@@ -491,11 +491,11 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
     }
     # TODO DLIO
     if workload == "unet3d":
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", EPOCH="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
     elif workload == "dlrm":
         mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
     else:
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", BLOCK="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
 
 
     fig, axs = plt.subplots(
@@ -563,13 +563,13 @@ def get_plotting_ranges(data_dir, workload):
 
     init = df.iloc[0]
 
-    if workload == "unet3d":
-        first_epoch = df[df["event"] == "EPOCH"].iloc[0]
-        first_training = None
-    else:
-        # For DLRM or BERT, we train on a single epoch, so we use 'TRAINING' events instead
-        first_epoch = None
-        first_training = df[df["event"] == "TRAINING"].iloc[0]
+    # if workload == "unet3d":
+    #     first_epoch = df[df["event"] == "EPOCH"].iloc[0]
+    #     first_training = None
+    # else:
+    # For DLRM or BERT, we train on a single epoch, so we use 'TRAINING' events instead
+    first_epoch = None
+    first_training = df[df["event"] == "TRAINING"].iloc[0]
 
     # Can add more workload or trace specific logic here to
     # save points of interest before returning plot ranges
@@ -582,6 +582,12 @@ def get_plotting_ranges(data_dir, workload):
         first_eval = None
         second_eval = None
         third_eval = None
+
+    try:
+        first_ckpt = df[df["event"] == "CKPT"].iloc[0]
+    except:
+        print("no ckpt in this workload")
+        first_ckpt = None
 
     last_event = df.iloc[-1]
 
@@ -606,6 +612,7 @@ def get_plotting_ranges(data_dir, workload):
         "first_training": (np.datetime64(first_training.start_date) - td_5s, np.datetime64(first_training.end_date) + td_5s) if first_training is not None else None, 
         "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s) if first_epoch is not None else None, 
         "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
+        "first_ckpt": (np.datetime64(first_ckpt.start_date) - td_5s, np.datetime64(first_ckpt.end_date) + td_5s) if first_ckpt is not None else None,
         "last_2min": (np.datetime64(last_event.end_date) - td_2min, None),
         "last_5s": (np.datetime64(last_event.end_date) - td_5s, None),
     }

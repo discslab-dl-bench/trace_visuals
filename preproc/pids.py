@@ -8,7 +8,7 @@ from os import path
 from .utilities import get_fields
 
 
-def get_pids(raw_traces_dir, preproc_traces_dir):
+def get_pids(raw_traces_dir, preproc_traces_dir, workload):
     """
     Determine the workload PIDs from processed read and raw GPU trace.
     Returns the parent PIDs, data-loader PIDs if present, and PIDs to ingore.
@@ -21,7 +21,10 @@ def get_pids(raw_traces_dir, preproc_traces_dir):
 
     # We usually filter the read trace by process name, with
     # an appropriate name for each workload. So the PIDs present
-    # in it should all be related to the workload.
+    # in it are MOSTLY related to the workload. However, since we 
+    # filter on process name, any other process with that name (e.g. python)
+    # will get caught in the traces, which happens for the vscode language server 
+    # for example, or someone running a random script.
     #
     # The GPU trace however, could contain other unrelated PIDs if
     # another process was using the GPUs at the same time.
@@ -51,6 +54,13 @@ def get_pids(raw_traces_dir, preproc_traces_dir):
     print(f'Parent PIDs ({len(parent_pids)}):\n{parent_pids}')
     print(f'Dataloader PIDs ({len(dataloader_pids)}):\n{dataloader_pids}')
     print(f'Ignore PIDs ({len(ignore_pids)}):\n{ignore_pids}')
+
+    # If we have dataloading processes and it's not UNET3D, add them to the ignore set
+    if workload != 'unet3d' and len(dataloader_pids) > 0:
+        print(f'Found extra PIDs in the read trace for {workload}.')
+        print(f'Most likely due to another python process starting during tracing. Ignore.')
+        ignore_pids = ignore_pids.union(dataloader_pids)
+        dataloader_pids = []
     
     return parent_pids, dataloader_pids, ignore_pids
 

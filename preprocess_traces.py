@@ -88,7 +88,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
 
 
     # Get the PIDs
-    parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir)
+    parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir, workload)
 
     if skip_to < 4:
         prepare_traces_for_timeline_plot(preproc_traces_dir, parent_pids, dataloader_pids, ignore_pids, TRACES, TRACE_LATENCY_COLUMN_IDX)
