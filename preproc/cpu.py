@@ -43,6 +43,8 @@ def process_cpu_trace(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
     # This trace is a bit more complicated, because mpstat has different outputs on different machines
     # E.g. sometimes it will have an AM/PM field, other times will use a 24h clock
 
+    p_ignore = re.compile(r'.*%[a-z]+.*')
+
     with open(cpu_trace, "r") as infile, open(outcsv, 'w') as outcsv, open(oututc, 'w') as oututc:
         # Print headers
         headers = [
@@ -64,7 +66,7 @@ def process_cpu_trace(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
 
         for i, line in enumerate(infile):
             
-            if len(line.strip()) == 0:
+            if len(line.strip()) == 0 or re.match(p_ignore, line):
                 continue
 
             # Remove duplicate spaces, and split
@@ -72,7 +74,7 @@ def process_cpu_trace(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
 
             # Don't process the last line
             if cols[0] == "Average:":
-                break
+                continue
 
             # Increment the date by one if we traced past midnight
             # This check assumes we have a line for each second
@@ -89,7 +91,8 @@ def process_cpu_trace(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
                     outcsv.write(",".join(cols) + "\n")
                     # Write a copy of the trace with UTC timestamp, might be useful for debugging
                     oututc.write(" ".join(cols) + '\n')
-            except:
+            except Exception as e:
+                print(e)
                 print(f"Skipping line: {line}")
                 continue
 

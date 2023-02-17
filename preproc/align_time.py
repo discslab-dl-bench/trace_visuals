@@ -9,7 +9,7 @@ from .utilities import get_fields, get_gpu_trace, get_time_align_trace
 from .gpu import get_local_date_from_raw
 
 
-MAX_ERR_COUNT = 1500
+MAX_ERR_COUNT = 5000
 
 # We want to estimate a nsecs since boot timestamp for a specific second in local time s.t. 15:27:39.000000000. 
 # This will allow us to align with some precision the timestamps with the millisecond precision UNIX timestamps 

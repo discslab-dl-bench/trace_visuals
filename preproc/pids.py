@@ -56,7 +56,7 @@ def get_pids(raw_traces_dir, preproc_traces_dir, workload):
     print(f'Ignore PIDs ({len(ignore_pids)}):\n{ignore_pids}')
 
     # If we have dataloading processes and it's not UNET3D, add them to the ignore set
-    if workload != 'unet3d' and len(dataloader_pids) > 0:
+    if workload == 'bert' and len(dataloader_pids) > 0:
         print(f'Found extra PIDs in the read trace for {workload}.')
         print(f'Most likely due to another python process starting during tracing. Ignore.')
         ignore_pids = ignore_pids.union(dataloader_pids)
@@ -116,8 +116,10 @@ def get_pids_from_raw_gpu_trace(gpu_trace):
                     # happen for our workloads. It would indicate someone else running 
                     # a workload at the same time. Ignore the second line's process.
                     if gpu == prev_gpu_idx:
-                        print(f"Identified concurrent process on GPU {gpu}:\n{last_line}{line}")
-                        ignore_pids.add(pid)
+                        # Only add the PID to the ignore list, if we haven't already included it in the PIDs of interest
+                        if pid not in pids:
+                            print(f"Identified concurrent process on GPU {gpu}:\n{last_line}{line}")
+                            ignore_pids.add(pid)
                     else:
                         if pid not in pids:
                             pids.add(pid)

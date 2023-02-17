@@ -47,8 +47,11 @@ def remove_logging_writes(traces_dir, workload) -> None:
                 print(f'Could not match line {line}')
 
     print(f'\tRemoved {lines_removed} logging writes!')
-    plot_histogram(all_write_sizes, traces_dir, "Write Sizes", "write_sizes", nbins=500)
-    plot_histogram(all_write_latencies, traces_dir, "Write Latencies", "write_latencies", nbins=500)
+    try:
+        plot_histogram(all_write_sizes, traces_dir, "Write Sizes", "write_sizes", nbins=500)
+        plot_histogram(all_write_latencies, traces_dir, "Write Latencies", "write_latencies", nbins=500)
+    except:
+        pass
 
     # Keep a backup of the original
     # Rename tmp to replace original

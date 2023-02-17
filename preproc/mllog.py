@@ -8,13 +8,14 @@ import numpy as np
 
 # Might have to modify this for DLIO
 # Workloads have different events of interst based on their inner workings
-WORKLOAD_MLLOG_REGEX_PATTERN = {
-    'unet3d': r".*(init_start|init_stop|epoch_start|epoch_stop|eval_start|eval_stop|checkpoint_start|checkpoint_stop).*",
-    'dlrm': r".*(init_start|init_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
-    'bert': r"^\[0\].*(init_start|init_stop|block_start|block_stop|checkpoint_start|checkpoint_stop|eval_start|eval_stop).*",
-    'dlio': r".*(init_start|init_stop|block_start|block_stop|eval_start|eval_stop|training_start|training_stop|checkpoint_start|checkpoint_stop).*",
+EVENTS_OF_INTEREST = {
+    'unet3d': {"init_start","init_stop","epoch_start","epoch_stop","eval_start","eval_stop","checkpoint_start","checkpoint_stop","ALL CASES SEEN"},
+    'dlrm': {"init_start","init_stop","eval_start","eval_stop","training_start","training_stop","checkpoint_start","checkpoint_stop"},
+    'bert': {"init_start","init_stop","block_start","block_stop","checkpoint_start","checkpoint_stop","eval_start","eval_stop"},
+    'dlio': {"init_start","init_stop","block_start","block_stop","eval_start","eval_stop","training_start","training_stop","checkpoint_start","checkpoint_stop"},
 }
 
+MLLOG_LINE_REGEX = r':::MLLOG'
 
 def process_mllog(traces_dir, output_dir, workload):
     mllog_to_valid_json(traces_dir, output_dir, workload)
@@ -43,14 +44,13 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
     logfile = os.path.join(traces_dir, f'{workload}.log')
     outfile = os.path.join(output_dir, f'{workload}.log')
 
-    regex = WORKLOAD_MLLOG_REGEX_PATTERN[workload]
-    pattern = re.compile(regex)
+    p_mllog_line = re.compile(MLLOG_LINE_REGEX)
 
     with open(logfile, 'r') as log, open(outfile, 'w') as outfile:
         # Open a JSON array
         outfile.write('[\n')
         for line in log:
-            if re.match(pattern, line):
+            if re.match(p_mllog_line, line):
                 line = line.replace(":::MLLOG ", "").rstrip()
                 # Assuming bert is run with horovod
                 if workload == 'bert':
@@ -93,29 +93,34 @@ def create_timeline_csv(preprocessed_traces_dir, workload):
 
     output_csv = os.path.join(outdir, "timeline.csv")
 
+    events_of_interest = EVENTS_OF_INTEREST[workload]
+
     with open(preproc_log, 'r') as infile, open(output_csv, 'w') as outfile:
         all_logs = json.load(infile)
 
         started_events = {}
-        have_not_seen_epoch = True
 
-        for i, log in enumerate(all_logs):
+        for log in all_logs:
 
-            timestamp = log["time_ms"]
-            key_parts = log["key"].split("_")
+            if "key" in log and log['key'] in events_of_interest:
+                timestamp = log["time_ms"]
 
-            evt = _get_canonical_event_name(key_parts[0].upper())
-            evt_type = key_parts[1].upper()
-
-            if evt_type == "STOP":
-                if evt not in started_events:
-                    print(f"WARNING: No starting event for {log['key']} at ts {log['time_ms']}\n")
+                key_parts = log["key"].split("_")
+                if len(key_parts) < 2:
                     continue
+
+                evt = _get_canonical_event_name(key_parts[0].upper())
+                evt_type = key_parts[1].upper()
+
+                if evt_type == "STOP":
+                    if evt not in started_events:
+                        print(f"WARNING: No starting event for {log['key']} at ts {log['time_ms']}\n")
+                        continue
+                    else:
+                        outfile.write(f"{started_events[evt]},{timestamp},{evt}\n")
+                        del started_events[evt]
                 else:
-                    outfile.write(f"{started_events[evt]},{timestamp},{evt}\n")
-                    del started_events[evt]
-            else:
-                started_events[evt] = timestamp
+                    started_events[evt] = timestamp
 
 
 if __name__ == "__main__":

@@ -52,11 +52,14 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
 
         if len(dataloader_pids) > 0:
             if num_loaders % num_parents != 0:
-                raise Exception(f'ERROR: dataloaders cannot be distributed evenly between parents: {num_parents} vs {num_loaders}')
+                print(f'Dataloaders cannot be distributed evenly between parents: {num_parents} vs {num_loaders}.')
+                dataloaders_to_remove = num_loaders % num_parents
+                print(f'Will remove {dataloaders_to_remove} dataloaders')
+                dataloader_pids = dataloader_pids[:dataloaders_to_remove]
 
             for i, loader_pid in enumerate(dataloader_pids):
                 file_idx = i % num_parents
-                print(f'Associating loader pid {loader_pid} to file {file_idx}')
+                # print(f'Associating loader pid {loader_pid} to file {file_idx}')
                 mapping[loader_pid] = files[file_idx]
 
         
@@ -184,6 +187,7 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
                             lat = int(data[latency_idx])
                             end_time = np.datetime64(data[0])
                             bio_type = 'BIOR' if data[4] == 'R' else 'BIOW'
+                            # bio_type = 'BIOR' if data[6] == 'R' else 'BIOW' # for old bio traces
                             line = f'{end_time - lat},{end_time},{bio_type}\n'
                         elif trace == 'read':
                             lat = int(data[latency_idx])

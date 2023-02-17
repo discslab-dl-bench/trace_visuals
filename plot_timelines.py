@@ -452,7 +452,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
         plot_iostat = True
 
     # Configure plot size, aspect ratios, etc.
-    fontsize = 16
+    fontsize = 20
     extra_height = 4 if len(timeline_files) == 1 else 1
 
     if paper_version:

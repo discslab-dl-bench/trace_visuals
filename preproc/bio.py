@@ -21,7 +21,8 @@ ACCEPTED_PROCESS_NAMES_REGEX = {
 # Lots of process names are pretty complicated and have weird symbols
 # Here we only need to match the application process which is usually just alpha numeric
 # and kworker processes which have a slash, colon and number usually. 
-BIO_LINE_REGEX = re.compile(r'^\d{4}\-\d{2}\-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{9}\s+\d+\s+([\w\.\+\-\:\/]+)\s+([a-z]{3})\s+([RW])')
+BIO_LINE_REGEX = r'^\d{4}\-\d{2}\-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{9}\s+\d+\s+([\w\.\+\-\:\/]+)\s+([a-z]{3})\s+([RW])'
+# BIO_LINE_REGEX_OLD = r'^\d{4}\-\d{2}\-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{9}\s+\d+\s+([\w\.\+\-\:\/]+)\s+\d+\s+[\w\.\+\-\:\/]+\s+([a-z]{3})\s+([RW])'
 
 
 def filter_out_unwanted_processes_from_bio(traces_dir, workload) -> None:
