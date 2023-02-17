@@ -6,28 +6,23 @@ def average_times(file, skip_epoch_1=False):
 
     all_times = {}
 
-    with open(file, 'r') as log:
+    with open(file, 'r') as file:
+        all_logs = json.load(file)
 
-        for line in log:
-            # discard the prefix
-            line = line.replace(":::MLLOG ", "")
-
-            # load as now valid json
-            line = json.loads(line)
-
-            if line['value'] is None:
+        for log in all_logs:
+            if log['value'] is None:
                 continue
             
-            if not isinstance(line['value'], dict):
+            if not isinstance(log['value'], dict):
                 continue
 
-            if skip_epoch_1 and 'epoch_num' in line['metadata'] and line['metadata']['epoch_num'] == 1:
+            if skip_epoch_1 and 'epoch_num' in log['metadata'] and log['metadata']['epoch_num'] == 1:
                 continue
 
-            key = line['key']
+            key = log['key']
 
-            if 'duration' in line['value']:
-                time = line['value']['duration'] / 1_000_000_000
+            if 'duration' in log['value']:
+                time = log['value']['duration'] / 1_000_000_000
             else:
                 continue
 
