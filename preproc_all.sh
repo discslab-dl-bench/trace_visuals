@@ -19,7 +19,8 @@ exit 0
 for d in $(ls $TRACE_DIR | grep UNET_200GB)
 do  
     echo $d
-    python3 preprocess_traces.py $TRACE_DIR/$d unet3d
+    mkdir data2_proc/${d}
+    python3 preprocess_traces.py data2/$d unet3d -o data2_proc > data2_proc/${d}/${d}.log
     python3 plot_timelines.py data_processed/$d/timeline unet3d $d
 done
 
