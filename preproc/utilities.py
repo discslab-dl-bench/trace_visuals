@@ -11,6 +11,9 @@ def iostat_trace_is_present(traces_dir):
     iostat_trace = get_iostat_trace(traces_dir)
     return os.path.isfile(iostat_trace)
 
+def get_dlio_log(traces_dir):
+    return os.path.join(traces_dir, 'dlio.log')
+
 def get_iostat_trace(traces_dir):
     return os.path.join(traces_dir, 'iostat.json')
 
@@ -32,7 +35,14 @@ def get_gpu_trace(traces_dir):
 def get_cpu_trace(traces_dir):
     return os.path.join(traces_dir, 'cpu.out')
 
-
+def _get_canonical_event_name(evt):
+    """
+    The three workloads don't agree what a training event looks like.
+    """
+    if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING':
+        evt = 'TRAINING'
+    return evt
+    
 def sliding_window(iterable, n, fillvalue=None):
     """
     Creates an array of n parallel iterators, that are 

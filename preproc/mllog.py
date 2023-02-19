@@ -5,6 +5,7 @@ import argparse
 import pathlib
 
 import numpy as np
+from preproc.utilities import _get_canonical_event_name
 
 # Might have to modify this for DLIO
 # Workloads have different events of interst based on their inner workings
@@ -71,14 +72,7 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         # End the JSON array
         outfile.write('\n]\n')
 
-def _get_canonical_event_name(evt):
-    """
-    The three workloads don't agree what a training event looks like.
-    """
-    if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING':
-        print(f'Converting {evt} to TRAINING')
-        evt = 'TRAINING'
-    return evt
+
 
 def create_timeline_csv(preprocessed_traces_dir, workload):
     """

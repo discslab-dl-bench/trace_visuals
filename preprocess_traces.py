@@ -1,6 +1,7 @@
 import pathlib
 import argparse
 from os import path
+from preproc.dlio import process_dlio_log
 
 from preproc.mllog import process_mllog
 from preproc.gpu import process_gpu_trace
@@ -63,11 +64,12 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     First, process the application log
     """
     # Process the MLLOG first
-    if workload == 'dlio':
-        print(f'DLIO log processing not implemented yet')
     
     if skip_to < 1:
-        process_mllog(traces_dir, output_dir, workload)
+        if workload == 'dlio':
+            process_dlio_log(traces_dir, output_dir)
+        else:
+            process_mllog(traces_dir, output_dir, workload)
 
     if skip_to < 2:
         # Time-align traces
@@ -91,7 +93,7 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     parent_pids, dataloader_pids, ignore_pids = get_pids(traces_dir, preproc_traces_dir, workload)
 
     if skip_to < 4:
-        prepare_traces_for_timeline_plot(preproc_traces_dir, parent_pids, dataloader_pids, ignore_pids, TRACES, TRACE_LATENCY_COLUMN_IDX)
+        prepare_traces_for_timeline_plot(preproc_traces_dir, parent_pids, dataloader_pids, ignore_pids, workload, TRACES, TRACE_LATENCY_COLUMN_IDX)
 
     if skip_to < 5:
         # Use the ignore PIDs to preprocess the GPU trace

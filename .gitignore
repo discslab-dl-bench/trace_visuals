@@ -10,6 +10,9 @@ UNET_*
 
 train_times/
 
+data*/
+cases/
+
 data/8gpu_*
 data/8gpus_*
 data/4gpu_*

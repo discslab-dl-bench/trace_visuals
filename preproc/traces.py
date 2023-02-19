@@ -121,7 +121,7 @@ def get_pid_file_mapping(parent_pids: set, dataloader_pids: set, config, outdir)
     return mapping
 
 
-def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pids: set, ignore_pids: set, TRACES, TRACE_LATENCY_COLUMN_IDX):
+def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pids: set, ignore_pids: set, workload, TRACES, TRACE_LATENCY_COLUMN_IDX):
 
     # Will create three subdrectories with different representations on the timeline
     # Different possibilities:
@@ -130,7 +130,10 @@ def prepare_traces_for_timeline_plot(traces_dir, parent_pids: set, dataloader_pi
     # - all parents combined, all dataloaders combined
     # - all combined
 
-    plot_configs = ["all_combined", "each_parent"]
+    plot_configs = ["all_combined"] 
+    
+    if workload != 'dlio':
+        plot_configs.append("each_parent")
 
     if len(dataloader_pids) > 0:
         plot_configs.extend(["parents_combined_loaders_combined", "each_parent_and_their_loaders"])

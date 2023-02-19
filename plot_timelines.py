@@ -219,7 +219,7 @@ def plot_iostat_info(data_dir, ax, fontsize=16, start=None, end=None):
     ax.set_title(f"Disk Usage (iostat)", fontsize = fontsize + 2)
     ax.set_ylabel("Usage (MB/s)", fontsize = fontsize)
 
-    df2 = df.groupby('timestamp').sum()
+    df2 = df.groupby('timestamp').sum(numeric_only=True)
     for i, var in enumerate(variables):
         line = ax.plot(df2.index, df2[var], label=var, linewidth=2)
         line[0].set_color(colormap[var])
@@ -249,8 +249,8 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
     df = pd.read_csv(
         join(timeline_dir, timeline_file), names=["start_date", "end_date", "event"]
     )
-    df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
-    df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+    df.start_date = pd.to_datetime(df.start_date).astype('datetime64[ns]')
+    df.end_date = pd.to_datetime(df.end_date).astype('datetime64[ns]')
 
     if start is not None:
         df = df[df["start_date"] >= np.datetime64(start)]
@@ -341,8 +341,8 @@ def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=N
 
 
     df = pd.read_csv(join(data_dir, "timeline.csv"), names=["start_date", "end_date", "event"])
-    df.start_date = pd.to_datetime(df.start_date).astype(np.datetime64)
-    df.end_date = pd.to_datetime(df.end_date).astype(np.datetime64)
+    df.start_date = pd.to_datetime(df.start_date).astype('datetime64[ns]')
+    df.end_date = pd.to_datetime(df.end_date).astype('datetime64[ns]')
 
     if start is not None:
         print(f"Filtering with start date >= {start}")
@@ -399,8 +399,8 @@ def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=N
         yrange = (ymin, bar_height)
         colors = [colors_dict[event] for event in df.event]
         # Plot vertical lines delimiting epoch starts
-        if workload == "unet3d":
-            ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
+        # if workload == "unet3d":
+        ax.vlines(x=start_dates, ymin=ymin, ymax=0.5, color='k', linewidth=0.25)
         ax.broken_barh(xranges, yrange, facecolors=colors, alpha=0.8)
 
     ax.spines["top"].set_visible(False)
@@ -489,13 +489,14 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
         'ymins': [0],
         'bar_height': 1
     }
-    # TODO DLIO
-    if workload == "unet3d":
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
-    elif workload == "dlrm":
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
-    else:
-        mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+
+    # # TODO DLIO
+    # if workload == "unet3d":
+    #     mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+    # elif workload == "dlrm":
+    #     mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
+    # else:
+    mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
 
 
     fig, axs = plt.subplots(
@@ -552,9 +553,10 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
         filename += '.png'
 
     filename = join(output_dir, filename)
-    print(f"Saving figure to {filename}\n")
 
+    print(f"Saving figure...")
     plt.savefig(filename, format="png", dpi=500)
+    print(f"Saved figure {filename}\n")
 
 
 def get_plotting_ranges(data_dir, workload):

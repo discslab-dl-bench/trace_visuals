@@ -51,16 +51,22 @@ def get_pids(raw_traces_dir, preproc_traces_dir, workload):
     dataloader_pids = pids_read.difference(pids_gpu)
     ignore_pids = ignore_pids.union(pids_gpu.difference(pids_read))
 
-    print(f'Parent PIDs ({len(parent_pids)}):\n{parent_pids}')
-    print(f'Dataloader PIDs ({len(dataloader_pids)}):\n{dataloader_pids}')
-    print(f'Ignore PIDs ({len(ignore_pids)}):\n{ignore_pids}')
+    print(f'Parent PIDs ({len(parent_pids)}):\n{sorted(list(parent_pids))}')
+    print(f'Dataloader PIDs ({len(dataloader_pids)}):\n{sorted(list(dataloader_pids))}')
+    print(f'Ignore PIDs ({len(ignore_pids)}):\n{sorted(list(ignore_pids))}')
 
     # If we have dataloading processes and it's not UNET3D, add them to the ignore set
+    # Note that we won't be able to catch foreign processes in this case.
     if workload == 'bert' and len(dataloader_pids) > 0:
         print(f'Found extra PIDs in the read trace for {workload}.')
         print(f'Most likely due to another python process starting during tracing. Ignore.')
         ignore_pids = ignore_pids.union(dataloader_pids)
         dataloader_pids = []
+
+    # DLIO will always have an empty parent_pids since it does not use GPUs
+    if workload == 'dlio':
+        parent_pids = dataloader_pids
+        dataloader_pids = {}
     
     return parent_pids, dataloader_pids, ignore_pids
 
