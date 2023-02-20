@@ -11,11 +11,18 @@ def iostat_trace_is_present(traces_dir):
     iostat_trace = get_iostat_trace(traces_dir)
     return os.path.isfile(iostat_trace)
 
+def strace_is_present(traces_dir):
+    strace_trace = get_strace_trace(traces_dir)
+    return os.path.isfile(strace_trace)
+
 def get_dlio_log(traces_dir):
     return os.path.join(traces_dir, 'dlio.log')
 
 def get_iostat_trace(traces_dir):
     return os.path.join(traces_dir, 'iostat.json')
+
+def get_strace_trace(traces_dir):
+    return os.path.join(traces_dir, 'strace.out')
 
 def get_time_align_trace(traces_dir):
     return os.path.join(traces_dir, 'trace_time_align.out')

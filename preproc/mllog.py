@@ -16,7 +16,7 @@ EVENTS_OF_INTEREST = {
     'dlio': {"init_start","init_stop","block_start","block_stop","eval_start","eval_stop","training_start","training_stop","checkpoint_start","checkpoint_stop"},
 }
 
-MLLOG_LINE_REGEX = r':::MLLOG'
+MLLOG_LINE_REGEX = r'(\[[0-9]\]\s){0,1}:::MLLOG\s'
 
 def process_mllog(traces_dir, output_dir, workload):
     mllog_to_valid_json(traces_dir, output_dir, workload)
@@ -51,12 +51,14 @@ def mllog_to_valid_json(traces_dir, output_dir, workload):
         # Open a JSON array
         outfile.write('[\n')
         for line in log:
-            if re.match(p_mllog_line, line):
-                line = line.replace(":::MLLOG ", "").rstrip()
-                # Assuming bert is run with horovod
-                if workload == 'bert':
-                    line = line.replace('[0]', '').strip()
+            if match := re.match(p_mllog_line, line):
+                
+                if (horovod_proc := match.group(1)) is not None:
+                    horovod_proc = horovod_proc.strip()
+                    if horovod_proc != '[0]':
+                        continue
 
+                line = line.replace(match.group(0), '').strip()
                 # Convert the UNIX timestamp to UTC before writing back
                 data = json.loads(line)
                 data['time_ms'] = str(np.datetime64(data["time_ms"], "ms"))

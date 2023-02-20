@@ -119,7 +119,9 @@ def filter_gpu_trace(raw_traces_dir, preproc_traces_dir, ignore_pids, UTC_TIME_D
 
 def calc_avg_gpu_usage(preproc_traces_dir):
     """
-    Computes the average GPU utilization, writing a CSV with the values.
+    Computes the average GPU utilization from the preprocessed GPU trace, writing out gpu_avg.csv
+    In preprocessing, only the lines with active GPUs were kept, thus this computes the
+    average utilization only of active GPUs.
     """
     print('Computing average GPU usage')
     gpu_trace = os.path.join(preproc_traces_dir, 'gpu.out')
@@ -174,3 +176,9 @@ def calc_avg_gpu_usage(preproc_traces_dir):
             if found_rank0:
                 outcsv.write(",".join(wcols) + "\n")
 
+if __name__ == "__main__":
+
+    pids, ignore_pids = get_pids_from_raw_gpu_trace('test_data/gpu_w_multiple_procs')
+    assert pids == {'2720663', '2720662', '2720661'}
+    assert ignore_pids == {'3333333'}
+    print("GPU from nvidia-smi trace test PASS")

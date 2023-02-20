@@ -46,6 +46,7 @@ def plot_all_configs(data_dir, workload, title, all_plots=False, paper_only=Fals
                         end = time_range[1],
                         xformat = "%H:%M:%S",
                         margin = np.timedelta64(1, "s") if zoom_name != "init" else np.timedelta64(100, "ms"),
+                        **kwargs,
                     )
 
     # For the paper version, plot the all combined config
@@ -534,7 +535,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, paper_ve
 
     # Should be the last axis
     i_ax += 1
-    plot_mllog_events(data_dir, axs[i_ax], mllog_event_plot_config, name=name, fontsize=fontsize, start=start, end=end, vlines=vlines)
+    plot_mllog_events(data_dir, axs[i_ax], mllog_event_plot_config, name=name, fontsize=fontsize, start=start, end=end, vlines=vlines, xformat=xformat)
 
    
    
@@ -599,25 +600,29 @@ def get_plotting_ranges(data_dir, workload):
     td_2min = np.timedelta64(2, 'm')
     td_5min = np.timedelta64(5, 'm')
 
+    # interesting_time_ranges = {
+    #     # "init": (np.datetime64("2022-09-29T19:32:25.00"), np.datetime64(init.end_date) + td_5s),
+    #     # "day_6_file_read": (np.datetime64("2022-09-29T19:32:30.239506016") - td_5s, np.datetime64("2022-09-29T19:32:44.958460081") + td_5s),
+    #     # "day_0_file_read": (np.datetime64("2022-09-29T19:33:01.420377093") - td_5s, np.datetime64("2022-09-29T19:33:15.946566115") + td_5s),
+    #     # "day_1_file_read": (np.datetime64("2022-09-29T19:42:48.089316076") - td_5s, np.datetime64("2022-09-29T19:42:57.752291574") + td_5s),
+    #     # "day_2_file_read": (np.datetime64("2022-09-29T19:56:33.207792720") - td_5s, np.datetime64("2022-09-29T19:56:47.943868838") + td_5s),
+    #     # "day_3_file_read": (np.datetime64("2022-09-29T20:10:30.240881200") - td_5s, np.datetime64("2022-09-29T20:10:39.802377009") + td_5s),
+    #     # "day_4_file_read": (np.datetime64("2022-09-29T20:24:18.938153014") - td_5s, np.datetime64("2022-09-29T20:24:28.575144348") + td_5s),
+    #     # "day_5_file_read": (np.datetime64("2022-09-29T20:33:37.799697746") - td_5s, np.datetime64("2022-09-29T20:33:48.829317627") + td_5s),
+    #     # "Overview": (np.datetime64(init.start_date) - td_5s, np.datetime64(second_eval.end_date) + td_5s) if second_eval is not None else None, 
+    #     "init": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.end_date) + td_5s),
+    #     "first_5min": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.start_date) + td_5min),
+    #     "first_training": (np.datetime64(first_training.start_date) - td_5s, np.datetime64(first_training.end_date) + td_5s) if first_training is not None else None, 
+    #     "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s) if first_epoch is not None else None, 
+    #     "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
+    #     "first_ckpt": (np.datetime64(first_ckpt.start_date) - td_5s, np.datetime64(first_ckpt.end_date) + td_5s) if first_ckpt is not None else None,
+    #     "last_2min": (np.datetime64(last_event.end_date) - td_2min, None),
+    #     "last_5s": (np.datetime64(last_event.end_date) - td_5s, None),
+    # }
     interesting_time_ranges = {
-        # "init": (np.datetime64("2022-09-29T19:32:25.00"), np.datetime64(init.end_date) + td_5s),
-        # "day_6_file_read": (np.datetime64("2022-09-29T19:32:30.239506016") - td_5s, np.datetime64("2022-09-29T19:32:44.958460081") + td_5s),
-        # "day_0_file_read": (np.datetime64("2022-09-29T19:33:01.420377093") - td_5s, np.datetime64("2022-09-29T19:33:15.946566115") + td_5s),
-        # "day_1_file_read": (np.datetime64("2022-09-29T19:42:48.089316076") - td_5s, np.datetime64("2022-09-29T19:42:57.752291574") + td_5s),
-        # "day_2_file_read": (np.datetime64("2022-09-29T19:56:33.207792720") - td_5s, np.datetime64("2022-09-29T19:56:47.943868838") + td_5s),
-        # "day_3_file_read": (np.datetime64("2022-09-29T20:10:30.240881200") - td_5s, np.datetime64("2022-09-29T20:10:39.802377009") + td_5s),
-        # "day_4_file_read": (np.datetime64("2022-09-29T20:24:18.938153014") - td_5s, np.datetime64("2022-09-29T20:24:28.575144348") + td_5s),
-        # "day_5_file_read": (np.datetime64("2022-09-29T20:33:37.799697746") - td_5s, np.datetime64("2022-09-29T20:33:48.829317627") + td_5s),
-        # "Overview": (np.datetime64(init.start_date) - td_5s, np.datetime64(second_eval.end_date) + td_5s) if second_eval is not None else None, 
-        "init": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.end_date) + td_5s),
-        "first_5min": (np.datetime64(init.start_date) - td_5s, np.datetime64(init.start_date) + td_5min),
-        "first_training": (np.datetime64(first_training.start_date) - td_5s, np.datetime64(first_training.end_date) + td_5s) if first_training is not None else None, 
-        "first_epoch": (np.datetime64(first_epoch.start_date) - td_5s, np.datetime64(first_epoch.end_date) + td_5s) if first_epoch is not None else None, 
-        "first_eval": (np.datetime64(first_eval.start_date) - td_5s, np.datetime64(first_eval.end_date) + td_5s) if first_eval is not None else None,
-        "first_ckpt": (np.datetime64(first_ckpt.start_date) - td_5s, np.datetime64(first_ckpt.end_date) + td_5s) if first_ckpt is not None else None,
-        "last_2min": (np.datetime64(last_event.end_date) - td_2min, None),
-        "last_5s": (np.datetime64(last_event.end_date) - td_5s, None),
+        "Zoom 2min": (np.datetime64('2023-02-11T11:34:00') - td_5s, np.datetime64('2023-02-11T11:36:00') + td_5s),
     }
+
 
     return interesting_time_ranges
 
@@ -658,6 +663,14 @@ if __name__ == "__main__":
     data_dir = _get_timeline_directory(args.data_dir)
     _verify_all_necessary_data_present(data_dir)
 
+    # prints = {
+    #     "print1": np.datetime64("2023-02-11T11:34:33.621862"),    # test data file
+    #     "print2": np.datetime64("2023-02-11T11:34:53.630388"),
+    #     "print3": np.datetime64("2023-02-11T11:35:18.553822"),
+    #     "print4": np.datetime64("2023-02-11T11:35:43.406083"),
+    #     "print5": np.datetime64("2023-02-11T11:36:03.631964"),
+    # }
+
     plot_all_configs(data_dir, workload, title, all_plots, paper_only)
 
 
@@ -666,14 +679,14 @@ if __name__ == "__main__":
     # Can mark points of interest with vertical lines by passing
     # timestamps to the plotting function as the vlines argument
 
-    # file_opens = {
-    #     "day_6": np.datetime64("2022-09-29T19:32:30.238828817"),    # test data file
-    #     "day_0": np.datetime64("2022-09-29T19:33:01.419774134"),
-    #     "day_1": np.datetime64("2022-09-29T19:42:48.088704926"),
-    #     "day_2": np.datetime64("2022-09-29T19:56:33.207291549"),
-    #     "day_3": np.datetime64("2022-09-29T20:10:30.240392129"),
-    #     "day_4": np.datetime64("2022-09-29T20:24:18.937630143"),
-    #     "day_5": np.datetime64("2022-09-29T20:33:37.386817568"),
-    # }
+    file_opens = {
+        "print1": np.datetime64("2023-02-11T11:34:33.621862"),    # test data file
+        "print2": np.datetime64("2023-02-11T11:34:53.630388"),
+        "day_1": np.datetime64("2022-09-29T19:42:48.088704926"),
+        "day_2": np.datetime64("2022-09-29T19:56:33.207291549"),
+        "day_3": np.datetime64("2022-09-29T20:10:30.240392129"),
+        "day_4": np.datetime64("2022-09-29T20:24:18.937630143"),
+        "day_5": np.datetime64("2022-09-29T20:33:37.386817568"),
+    }
 
 

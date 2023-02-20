@@ -316,23 +316,3 @@ if __name__ == "__main__":
     assert pids == {'2720663', '2720662', '2720661'}
     assert ignore_pids == {'3333333'}
     print("GPU from nvidia-smi trace test PASS")
-
-    # p = argparse.ArgumentParser(description="Extract relevant PIDs and their names from pids_tids.out")
-    # p.add_argument("data_dir", help="Raw traces directory")
-    # p.add_argument("output_dir", help="output directory")
-    # args = p.parse_args()
-
-    # if not os.path.isdir(args.data_dir):
-    #     print(f"ERROR: Invalid data dir given")
-    #     exit(-1) 
-    
-    # print('#####################################################')
-    # print("pid_names.py: Extracting PID information from traces")
-    # print('#####################################################\n')
-
-    # if not os.path.isdir(args.data_dir):
-    #     pathlib.Path(args.data_dir).mkdir(exist_ok=True, parents=True)
-    
-    # main(args.data_dir, args.output_dir)
-
-    # print("All done\n")

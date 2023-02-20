@@ -47,7 +47,8 @@ def filter_out_unwanted_processes_from_bio(traces_dir, workload) -> None:
 
                     # Only keep kworker lines if they are sdb writes
                     if proc_name == 'kworker':
-                        if disk == 'sdb' and op_type == 'W':
+                        # if disk == 'sdb' and op_type == 'W':
+                        if disk == 'sdb':
                             outfile.write(line)
                     else:
                         outfile.write(line)

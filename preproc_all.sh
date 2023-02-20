@@ -7,21 +7,13 @@
 
 TRACE_DIR="/dl-bench/lhovon/tracing_tools/trace_results"
 
-python3 preprocess_traces.py /dl-bench/lhovon/tracing_tools/trace_results/DLRM_TB_bin_1w dlrm
-python3 plot_timelines.py data_processed/DLRM_TB_bin_1w dlrm DLRM_TB_bin_1w
 
-python3 preprocess_traces.py /dl-bench/lhovon/tracing_tools/trace_results/UNET_30GB_generated unet3d
-python3 plot_timelines.py data_processed/UNET_30GB_generated unet3d UNET_30GB_generated
-
-exit 0
-
-
-for d in $(ls $TRACE_DIR | grep UNET_200GB)
+for d in $(ls data3 | grep DLRM_)
 do  
     echo $d
-    mkdir data2_proc/${d}
-    python3 preprocess_traces.py data2/$d unet3d -o data2_proc > data2_proc/${d}/${d}.log
-    python3 plot_timelines.py data_processed/$d/timeline unet3d $d
+    mkdir -p data3_proc/$d
+    python3 preprocess_traces.py data3/$d dlrm -o data3_proc | tee data3_proc/${d}/${d}.log
+    python3 plot_timelines.py data3_proc/$d dlrm $d
 done
 
 # for d in $(ls data | grep 32ksteps)

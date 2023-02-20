@@ -11,7 +11,8 @@ from preproc.bio import filter_out_unwanted_processes_from_bio, process_long_bio
 from preproc.pids import get_pids
 from preproc.iostat import iostat_to_csv
 from preproc.read import process_absurdly_large_read_sizes
-from preproc.utilities import iostat_trace_is_present
+from preproc.strace import convert_strace_tt_timestamps_to_utc
+from preproc.utilities import iostat_trace_is_present, strace_is_present
 from preproc.traces import prepare_traces_for_timeline_plot
 from preproc.write import remove_logging_writes
 
@@ -101,9 +102,13 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
 
         # CPU trace is system-wide so no PID filtering needed
         process_cpu_trace(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
+
         # Iostat trace as well, and is optional
         if iostat_trace_is_present(traces_dir):
             iostat_to_csv(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
+
+        if strace_is_present(traces_dir):
+            convert_strace_tt_timestamps_to_utc(traces_dir, preproc_traces_dir, UTC_TIME_DELTA)
 
 
 
