@@ -1,9 +1,10 @@
 import pathlib
 import argparse
 from os import path
+from pathlib import Path
 from preproc.dlio import process_dlio_log
 
-from preproc.mllog import process_mllog
+from preproc.mllog import get_workload_app_log, process_mllog
 from preproc.gpu import process_gpu_trace
 from preproc.cpu import process_cpu_trace
 from preproc.align_time import convert_traces_timestamp_to_UTC
@@ -46,15 +47,30 @@ def verify_all_traces_present(traces_dir, workload) -> bool:
     Returns true if all essential traces are present with their expected file name.
     """
     all_traces = [f'trace_{trace}.out' for trace in TRACES] 
-    all_traces += ['gpu.out', 'cpu.out', f'{workload}.log', 'trace_time_align.out']
+    all_traces += ['gpu.out', 'cpu.out', 'trace_time_align.out']
 
     success = True
     for trace in all_traces:
         expected_filename = path.join(traces_dir, trace)
 
+        # Second chance
         if not path.isfile(expected_filename):
-            print(f'ERROR: Missing essential trace {expected_filename}')
-            success = False
+
+            print(f'Did not find {expected_filename}, trying again')
+
+            found_file = str(next(Path(traces_dir).rglob(trace)))
+
+            if len(found_file) == 0:
+                print(f'ERROR: Missing essential trace {expected_filename}')
+                success = False
+            else:
+                print(f'\tFound it further at {found_file}')
+
+    try:
+        get_workload_app_log(traces_dir, workload)
+    except Exception as e:
+        print(f'ERROR: Missing application log for {workload}')
+        raise e
         
     return success
 

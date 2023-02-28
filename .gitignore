@@ -2,13 +2,17 @@
 __pycache__/
 plots/
 data_processed/
+paper_timelines*/
 
 BERT_*
 DLRM_*
 UNET3D_*
 UNET_*
 
+dlio_latest/
+dlio_latest_proc/
 train_times/
+mmap_analysis/
 
 data*/
 cases/

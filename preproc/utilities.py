@@ -1,5 +1,6 @@
 import os
 import pathlib
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +17,12 @@ def strace_is_present(traces_dir):
     return os.path.isfile(strace_trace)
 
 def get_dlio_log(traces_dir):
-    return os.path.join(traces_dir, 'dlio.log')
+    log_path = os.path.join(traces_dir, 'dlio.log')
+
+    if not os.path.isfile(log_path):
+        return str(next(Path(traces_dir).rglob('dlio.log')))
+
+    return log_path
 
 def get_iostat_trace(traces_dir):
     return os.path.join(traces_dir, 'iostat.json')
@@ -46,7 +52,7 @@ def _get_canonical_event_name(evt):
     """
     The three workloads don't agree what a training event looks like.
     """
-    if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING':
+    if evt == 'EPOCH' or evt == 'BLOCK' or evt == 'TRAINING' or evt == 'RUN':
         evt = 'TRAINING'
     return evt
     

@@ -7,16 +7,28 @@
 
 
 
-for d in $(ls $1 | grep -E '^UNET')
+for d in $(ls $1 | grep DLIO)
 do  
     echo $d
-    python3 preprocess_traces.py $1/$d unet3d -o data_feb24_proc/
+    python3 preprocess_traces.py $1/$d dlio -o data_feb24_proc/
 done
-for d in $(ls $1 | grep -E '^BERT')
+
+for d in $(ls $1 | grep -E '^DLRM')
 do  
     echo $d
-    python3 preprocess_traces.py $1/$d bert -o data_feb24_proc/
+    python3 preprocess_traces.py $1/$d dlrm -o data_feb24_proc/
 done
+
+# for d in $(ls $1 | grep UNET)
+# do  
+#     echo $d
+#     python3 preprocess_traces.py $1/$d unet3d -o data_feb24_proc/
+# done
+# for d in $(ls $1 | grep -E '^BERT')
+# do  
+#     echo $d
+#     python3 preprocess_traces.py $1/$d bert -o data_feb24_proc/
+# done
 
 # for d in $(ls data | grep 32ksteps)
 # do  

@@ -3,6 +3,7 @@ import re
 import json
 import argparse
 import pathlib
+from pathlib import Path
 
 import numpy as np
 from preproc.utilities import _get_canonical_event_name
@@ -37,12 +38,31 @@ def get_init_start_time(preproc_traces_dir):
     raise Exception(f'ERROR: Could not find INIT event in {timeline_csv}')
 
 
+def get_workload_app_log(traces_dir, workload):
+                
+    possible_log_file_names = {
+         'bert': ['app.log', 'bert.log'],
+         'dlrm': ['dlrm.log', 'dlrm_tera.log'],
+         'dlio': ['dlio.log'],
+         'unet3d': ['unet3d.log'],
+    }
+
+    for potential_log_file in possible_log_file_names[workload]:
+
+        matching_files = list(Path(traces_dir).rglob(potential_log_file))
+
+        if len(matching_files) > 0:
+            return str(matching_files[0])
+    
+    raise Exception(f'ERROR: Could not find application log for {workload}')
+
+
 def mllog_to_valid_json(traces_dir, output_dir, workload):
     """
     Go through mllog, transform to valid JSON and filter events based on workload.
     """
     print('Converting mllog to valid JSON')
-    logfile = os.path.join(traces_dir, f'{workload}.log')
+    logfile = get_workload_app_log(traces_dir, workload)
     outfile = os.path.join(output_dir, f'{workload}.log')
 
     p_mllog_line = re.compile(MLLOG_LINE_REGEX)

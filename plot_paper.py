@@ -16,37 +16,38 @@ def plot_all_configs(data_dir, title, all_plots=False, paper_only=False, **kwarg
     Create a timeline plot for every configuration present under data_dir/timeline/pid.
     Create a 'paper format' plot using the all_combined config, which should always exist.
     """
-    print(data_dir)
-    # Each timeline configuration has a directory under data_dir/pid
-    timeline_dirs = [f.path for f in os.scandir(join(data_dir, 'pid')) if f.is_dir()]
+    # print(data_dir)
+    # # Each timeline configuration has a directory under data_dir/pid
+    # timeline_dirs = [f.path for f in os.scandir(join(data_dir, 'pid')) if f.is_dir()]
     
-    if not paper_only:
-        for timeline_dir in timeline_dirs:
+    # if not paper_only:
+    #     for timeline_dir in timeline_dirs:
 
-            plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, f'{title} Overview', name='overview', **kwargs)
+    #         plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, f'{title} Overview', name='overview', **kwargs)
 
-            if all_plots:
+    #         if all_plots:
 
-                interesting_time_ranges = get_plotting_ranges(data_dir)
+    #             interesting_time_ranges = get_plotting_ranges(data_dir, workload)
 
-                for zoom_name, time_range in interesting_time_ranges.items():
-                    if time_range is None:
-                        continue
+    #             for zoom_name, time_range in interesting_time_ranges.items():
+    #                 if time_range is None:
+    #                     continue
                     
-                    print(f'Zooming into {zoom_name}')
+    #                 print(f'Zooming into {zoom_name}')
 
-                    plot_pids_timeline_cpu_gpu(
-                        data_dir,
-                        timeline_dir,
-                        title = f"{title} {zoom_name}",
-                        # filename = f"{title} {zoom_name}",
-                        name = zoom_name,
-                        start = time_range[0],
-                        end = time_range[1],
-                        xformat = "%H:%M:%S",
-                        margin = np.timedelta64(1, "s") if zoom_name != "init" else np.timedelta64(100, "ms"),
-                        **kwargs,
-                    )
+    #                 plot_pids_timeline_cpu_gpu(
+    #                     data_dir,
+    #                     timeline_dir,
+    #                     workload,
+    #                     title = f"{title} {zoom_name}",
+    #                     # filename = f"{title} {zoom_name}",
+    #                     name = zoom_name,
+    #                     start = time_range[0],
+    #                     end = time_range[1],
+    #                     xformat = "%H:%M:%S",
+    #                     margin = np.timedelta64(1, "s") if zoom_name != "init" else np.timedelta64(100, "ms"),
+    #                     **kwargs,
+    #                 )
 
     # For the paper version, plot the all combined config
     combined_config_dir = join(data_dir, 'pid/all_combined')
@@ -143,8 +144,8 @@ def plot_gpu_info(data_dir, ax1, fontsize=16, start=None, end=None):
     if end is not None:
         df = df[df["timestamp"] <= np.datetime64(end)]
 
-    ax1.set_title("GPU Usage", fontsize=fontsize+2)
-    ax1.set_ylabel("Usage (%)", fontsize=fontsize)
+    # ax1.set_title("GPU Usage", fontsize=fontsize)
+    # ax1.set_ylabel("Usage (%)", fontsize=fontsize)
 
     ax1.plot(
         df["timestamp"],
@@ -166,7 +167,7 @@ def plot_gpu_info(data_dir, ax1, fontsize=16, start=None, end=None):
     # Instantiate a second axes that shares the same x-axis
     ax2 = ax1.twinx()  
 
-    ax2.set_ylabel("Size (GB)", fontsize=fontsize)
+    # ax2.set_ylabel("Size (GB)", fontsize=fontsize)
     ax2.plot(
         df["timestamp"],
         df["fb"] / 1000.0,
@@ -174,7 +175,6 @@ def plot_gpu_info(data_dir, ax1, fontsize=16, start=None, end=None):
         color="tab:blue",
         linewidth=2,
         markersize=5,
-        rasterized=True
     )
 
     ax1.grid(True, which="both", linestyle="--")
@@ -184,9 +184,9 @@ def plot_gpu_info(data_dir, ax1, fontsize=16, start=None, end=None):
     ax1.set_ylim(ymin=0, ymax=100)
     ax2.set_ylim(ymin=0, ymax=32)
 
-    # This will combine the GPU %mp, %mem and FBmem legends  
-    handles, labels = [(a + b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
-    ax2.legend(handles, labels, loc='center right', fontsize=fontsize)
+    # # This will combine the GPU %mp, %mem and FBmem legends  
+    # handles, labels = [(a + b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
+    # ax2.legend(handles, labels, loc='center right', fontsize=fontsize)
 
 
 def plot_iostat_info(data_dir, ax, fontsize=16, start=None, end=None):
@@ -244,7 +244,7 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
 
     ptitle = plotting_info[timeline_file]
     
-    ax.set_title(f"{ptitle}", fontsize=fontsize+2)
+    ax.set_title(f"{ptitle}", fontsize=fontsize)
 
     df = pd.read_csv(
         join(timeline_dir, timeline_file), names=["start_date", "end_date", "event"]
@@ -293,11 +293,11 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
     ax.set_yticklabels(categories)
 
     # Add the legend
-    if plot_legend:
-        patches = [
-            mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()
-        ]
-        ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
+    # if plot_legend:
+    #     patches = [
+    #         mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()
+    #     ]
+    #     ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
 
     # Sometimes the range we try to plot contains nothing so the limits are NaT
     # and the program throws a value error "Axis limits cannot be NaN or Inf"
@@ -355,28 +355,6 @@ def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=N
 
     # Add synthetic data to show timeline info when no data point is included in the desired range
     # Uncomment/modify according to needs
-
-    # if df.shape[0] == 0:
-    #     print("empty will create default data")
-    #     df.loc[-1] = [ np.datetime64(start),  np.datetime64(end), "EPOCH"]
-    # # elif df.shape[0] == 1:
-
-    # if title == "MLCommons Image Segmentation - 4 GPUs 1xRAM dataset - Naive Copy First 5 Min":
-    #     init_period = df.iloc[0]
-    #     print("pad end with epoch")
-    #     df.loc[-1] = [ init_period["end_date"],  np.datetime64(end), "EPOCH"]
-    #     print(df)
-    #     print(df.shape)
-    # elif title == "MLCommons Image Segmentation - 4 GPUs 1xRAM dataset - First Eval":
-    #     print("Pad training with epochs")
-    #     eval_period = df.iloc[0]
-    #     eval_start = eval_period["start_date"] - np.timedelta64(1, "us")
-    #     df.loc[-1] = [ np.datetime64(start),  eval_start, "EPOCH"]
-    #     eval_stop = eval_period["end_date"] + np.timedelta64(1, "us")
-    #     df.loc[-2] = [ eval_stop,  np.datetime64(end), "EPOCH"]
-    #     print(df)
-    #     print(df.shape)
-    # else:
     # if df.shape[0] == 0:
     #     if name == 'first_30s' or name == 'init':
     #         print("Pad with init")
@@ -421,14 +399,33 @@ def plot_mllog_events(data_dir, ax, plot_config, fontsize=16, name=None, start=N
 
     # Add the legend
     patches = [mpatches.Patch(color=color, label=key) for (key, color) in colors_dict.items()]
-    ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
+    # ax.legend(handles=patches, bbox_to_anchor=(1, 0.5), loc="center left", fontsize=fontsize)
 
     ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
     ax.xaxis.set_major_formatter(mdates.DateFormatter(xformat))
 
+
+    # # specify a date to use for the times
+    # zero = datetime.datetime(2018,1,1)
+    # time = [zero + t for t in time_list]
+    # # convert datetimes to numbers
+    # zero = mdates.date2num(zero)
+    # time = [t-zero for t in mdates.date2num(time)]
+
+    # f = plt.figure()
+    # ax = f.add_subplot(1,1,1)
+
+    # ax.bar(days, time, bottom=zero)
+    # ax.yaxis_date()
+    # ax.yaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+
+    # add 10% margin on top (since ax.margins seems to not work here)
+    ylim = ax.get_ylim()
+    ax.set_ylim(None, ylim[1]+0.1*np.diff(ylim))
+
     # Format the y-ticks
     ax.get_yaxis().set_visible(False)
-    ax.set_title("Timeline", fontsize=fontsize+2)
+    ax.set_title("Timeline", fontsize=fontsize)
 
     ax.grid(True, axis="x", linestyle="--", linewidth=0.45, alpha=0.2, color="grey")
     ax.tick_params(axis="x", which="both", direction="out", rotation=30, labelsize=fontsize)
@@ -457,8 +454,8 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, title, paper_version=Fals
 
     if paper_version:
         total_rows = len(timeline_files) + 2
-        gridspec_kw={"height_ratios": [1] * (total_rows - 1) + [0.5]}
-        figsize = (30, (total_rows -1) * 1.5 + extra_height)
+        gridspec_kw={"height_ratios": [0.75] + [1] * (total_rows - 2) + [0.5]}
+        figsize = (14, (total_rows -1) * 1.5 + extra_height)
     else:
         # Check out how many rows we'll need
         if plot_iostat:
@@ -539,12 +536,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, title, paper_version=Fals
    
    
     data_dir = pathlib.Path(data_dir).parent.absolute()
-    if not paper_version:
-        fig.suptitle(title)
-        output_dir = join(data_dir, 'plots', config)
-    else:
-        output_dir = join(data_dir, 'plots_paper')
-        plt.tight_layout(pad=0.5, h_pad=0.5)
+    output_dir = join(data_dir, 'plots_2', config)
     
     # Create output directory if it doesn't exist
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -559,7 +551,7 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, title, paper_version=Fals
     print(f"Saved figure {filename}\n")
 
 
-def get_plotting_ranges(data_dir):
+def get_plotting_ranges(data_dir, workload):
 
     df = pd.read_csv(os.path.join(data_dir, "timeline.csv"), names=["start_date", "end_date", "event"])
 
@@ -647,17 +639,13 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Create the timeline plots for a given run")
     p.add_argument("data_dir", help="Path to 'timeline' subdirectory in preprocessed data directory")
-    # p.add_argument("workload", help="Workload name", choices=['unet3d', 'bert', 'dlrm', 'dlio'])
     p.add_argument("experiment_name", help="Plot title")
     p.add_argument("-po", "--paper-only", action="store_true", default=False, help="Generate only paper plots")
-    p.add_argument("-a", "--all-plots", action="store_true", default=False, help="Generate all the default zooms into the timeline (first 5min, first epoch, etc.)")
     args = p.parse_args()
 
     data_dir = args.data_dir
-    # workload = args.workload
     title = args.experiment_name
-    all_plots = args.all_plots
-    paper_only = args.paper_only
+    paper_only = True
 
     data_dir = _get_timeline_directory(args.data_dir)
     _verify_all_necessary_data_present(data_dir)
@@ -670,7 +658,7 @@ if __name__ == "__main__":
     #     "print5": np.datetime64("2023-02-11T11:36:03.631964"),
     # }
 
-    plot_all_configs(data_dir, title, all_plots, paper_only)
+    plot_all_configs(data_dir, title, False, True)
 
 
     exit()
