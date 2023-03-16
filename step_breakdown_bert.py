@@ -67,12 +67,17 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
         num_gpus = []
         batch_sizes = []
 
+        import os
+        outfile = open(os.path.join(data_dir, "bert_step_analysis.txt"), "w")
+        outfile.write(f"{'Metric':>30}\t{'Mean':>15}\t{'Median':>15}\t{'Std':>15}\t{'1st quartile':>15}\t{'3rd quart':>15}\n")
+
         for profiler_dir in profiler_dirs:
 
             # extract num gpu and batch size
             num_gpu = get_num_gpus(profiler_dir.name)
             batch_size = get_batch_size(profiler_dir.name)
-            global_batch_size = num_gpu * batch_size
+            # global_batch_size = num_gpu * batch_size
+            global_batch_size = batch_size
 
             num_gpus.append(num_gpu)
             batch_sizes.append(batch_size)
@@ -84,8 +89,8 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                         "all_compute": [],
                         "load_batch_to_mem": [],
                         "step_end": [],
-                        "data_loading_bandwidth": [],
-                        "data_proc_bandwidth": [],
+                        "data_loading_throughput": [],
+                        "data_proc_throughput": [],
                     }
                 }
             else:
@@ -93,8 +98,8 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                     "all_compute": [],
                     "load_batch_to_mem": [],
                     "step_end": [],
-                    "data_loading_bandwidth": [],
-                    "data_proc_bandwidth": [],
+                    "data_loading_throughput": [],
+                    "data_proc_throughput": [],
                 }
 
             # iterate over all profiler traces
@@ -137,22 +142,22 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
 
                 load_batch_to_mem = iterator_end - iterator_start
                 load_batch_to_mem = load_batch_to_mem.astype('int64') / 1e6
-                data_loading_bandwidth = global_batch_size / ( load_batch_to_mem )
+                data_loading_throughput = global_batch_size / ( load_batch_to_mem )
 
                 start_ts = np.datetime64(lowest_ts, 'us')
                 end_ts = np.datetime64(highest_ts, 'us')
                 step_end = end_ts - start_ts
                 step_end = step_end.astype('int64') / 1e6
 
-                data_proc_bandwidth = global_batch_size / step_end
+                data_proc_throughput = global_batch_size / step_end
 
                 # We consider that since no computation can be done before the batch is loaded in memory
                 # the total computation time is everything from sending the batch to the trace end
                 all_compute = end_ts - memcpy_ts
                 all_compute = all_compute.astype('int64') / 1e6
 
-                all_data[num_gpu][batch_size]["data_loading_bandwidth"].append(data_loading_bandwidth)
-                all_data[num_gpu][batch_size]["data_proc_bandwidth"].append(data_proc_bandwidth)
+                all_data[num_gpu][batch_size]["data_loading_throughput"].append(data_loading_throughput)
+                all_data[num_gpu][batch_size]["data_proc_throughput"].append(data_proc_throughput)
                 all_data[num_gpu][batch_size]["load_batch_to_mem"].append(load_batch_to_mem)
                 all_data[num_gpu][batch_size]["all_compute"].append(all_compute)
                 all_data[num_gpu][batch_size]["step_end"].append(step_end)
@@ -161,26 +166,38 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
         # DS to hold median, q1, q3 of data
         plotting_data = copy.deepcopy(all_data)
 
-
         simulation_sleep_time = {}
-
 
 
         # now we have the raw data
         for gpu_key in all_data:
             for batch_size in all_data[gpu_key]:
+
+                outfile.write(f"BERT_{gpu_key}GPU_{batch_size}batch\n")
+
                 for metric in all_data[gpu_key][batch_size]:
 
                     data = all_data[gpu_key][batch_size][metric]
+
+                    mean = statistics.mean(data)
+                    median = statistics.median(data)
+                    std = statistics.stdev(data)
                     quartiles = statistics.quantiles(data)
+
                     plotting_data[gpu_key][batch_size][metric] = {
-                        "median": statistics.median(data),
-                        "mean": statistics.mean(data),
-                        "std": statistics.stdev(data),
+                        "median": median,
+                        "mean": mean,
+                        "std": std,
                         "q1": quartiles[0],
                         "q3": quartiles[2],
                     }
+                    ROUND = 5
+                    outfile.write(f"{metric:>30}:\t{round(mean, ROUND):>15}\t{round(median, ROUND):>15}\t{round(std, ROUND):>15}\t{round(quartiles[0], ROUND):>15}\t{round(quartiles[2], ROUND):>15}\n")
+                outfile.write("\n")
 
+        outfile.flush()
+        outfile.close()
+        
 
         for gpu_key in all_data:
             for batch_size in all_data[gpu_key]:
@@ -189,12 +206,18 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                     simulation_sleep_time[gpu_key][batch_size] = {
                         'mean': plotting_data[gpu_key][batch_size]['all_compute']['mean'],
                         'std': plotting_data[gpu_key][batch_size]['all_compute']['std'],
+                        'median': plotting_data[gpu_key][batch_size]['all_compute']['median'],
+                        'q1': plotting_data[gpu_key][batch_size]['all_compute']['q1'],
+                        'q3': plotting_data[gpu_key][batch_size]['all_compute']['q3'],
                     }
                 else:
                     simulation_sleep_time[gpu_key] = {
                         batch_size: {
                             'mean': plotting_data[gpu_key][batch_size]['all_compute']['mean'],
                             'std': plotting_data[gpu_key][batch_size]['all_compute']['std'],
+                            'median': plotting_data[gpu_key][batch_size]['all_compute']['median'],
+                            'q1': plotting_data[gpu_key][batch_size]['all_compute']['q1'],
+                            'q3': plotting_data[gpu_key][batch_size]['all_compute']['q3'],
                         }
                     }     
 
@@ -210,16 +233,19 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
             json.dump(simulation_sleep_time, outfile, indent=4)
 
 
-def plot_bandwidths(trace_dir):
+
+
+def plot_throughputs(trace_dir):
     # Load the data
     with open(trace_dir / "processed" / "BERT_plotting_data.json", 'r') as infile:
         plotting_data = json.load(infile)
 
+
     pprint(plotting_data)
 
     metrics_pretty_names = {
-        "data_loading_bandwidth": "Data Load Bandwidth",
-        "data_proc_bandwidth": "Processing Bandwidth",
+        "data_loading_throughput": "Data Throughput",
+        "data_proc_throughput": "Processing Throughput",
     }
     metrics_to_plot = { metric: [] for metric in metrics_pretty_names }
     
@@ -281,14 +307,14 @@ def plot_bandwidths(trace_dir):
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper right',  bbox_to_anchor = (-0.2, -0.05, 1, 1), bbox_transform = plt.gcf().transFigure, fontsize=FONTSIZE)
 
-    fig.supylabel("Bandwidth (sample/s)", fontsize=FONTSIZE)
-    fig.supxlabel('Batch Size', fontsize=FONTSIZE)
+    fig.supylabel("Samples / s", fontsize=FONTSIZE)
+    fig.supxlabel('Batch size', fontsize=FONTSIZE)
 
     output_dir = Path(data_dir) / "plots"
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    filename = f"BERT_breakdown_bandwidths.png"
+    filename = f"BERT_throughputs.png"
     figure_filename = output_dir / filename
 
     plt.savefig(figure_filename, format="png", dpi=450)
@@ -308,8 +334,8 @@ def plot_bw_and_breakdown(trace_dir):
     pprint(plotting_data)
 
     metrics_pretty_names = {
-        "data_loading_bandwidth": "Data Load Bandwidth",
-        "data_proc_bandwidth": "Processing Bandwidth",
+        "data_loading_throughput": "Data Load Bandwidth",
+        "data_proc_throughput": "Processing Bandwidth",
         "step_end": "Overall Step Time",
         "load_batch_to_mem": "Data Loading",
         "all_compute": "Computation",
@@ -408,7 +434,7 @@ def plot_bw_and_breakdown(trace_dir):
     plt.close(fig)
 
 
-def plot_breakdown(trace_dir):
+def plot_breakdown(trace_dir, sharey=True):
     # Load the data
     with open(trace_dir / "processed" / "BERT_plotting_data.json", 'r') as infile:
         plotting_data = json.load(infile)
@@ -416,9 +442,9 @@ def plot_breakdown(trace_dir):
     pprint(plotting_data)
 
     metrics_pretty_names = {
-        "step_end": "Overall Step Time",
-        "load_batch_to_mem": "Data Loading",
-        "all_compute": "Computation",
+        "step_end": "Overall Step",
+        "load_batch_to_mem": "1 Batch Loading",
+        "all_compute": "2 Computation",
     }
     metrics_to_plot = { metric: [] for metric in metrics_pretty_names }
     
@@ -437,7 +463,12 @@ def plot_breakdown(trace_dir):
     batch_sizes_str = sorted([str(b) for b in batch_sizes])
 
     # Overall plot
-    fig, axes = plt.subplots(nrows=1, ncols=len(metrics_to_plot.keys()), layout="constrained", figsize=(3.1 * len(metrics_to_plot.keys()), 6), sharey=True)
+    fig, axes = plt.subplots(nrows=1, 
+        ncols=len(metrics_to_plot.keys()), 
+        layout="constrained", 
+        figsize=(3.1 * len(metrics_to_plot.keys()), 6), 
+        sharey=sharey
+    )
 
     FONTSIZE = 18
     i_ax = -1
@@ -446,17 +477,16 @@ def plot_breakdown(trace_dir):
         ax = axes[i_ax]
         ax.set_title(metrics_pretty_names[metric], fontsize=FONTSIZE)
 
-        if i_ax == 1:
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
+        if sharey:
+            if i_ax == 1:
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
 
-        if i_ax >= 2:
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            # ax.spines['bottom'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.tick_params(left = False)
-            # ax.yaxis.tick_params(which="major", visible=False)
+            if i_ax >= 2:
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.tick_params(left = False)
 
         # plot the metric in the axes
         for gpu_key in num_gpus_str:
@@ -498,7 +528,7 @@ def plot_breakdown(trace_dir):
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    filename = f"BERT_breakdown_paper.png"
+    filename = f"BERT_step_breakdown{'_sharey' if sharey else ''}.png"
     figure_filename = output_dir / filename
 
     plt.savefig(figure_filename, format="png", dpi=450)
@@ -527,6 +557,7 @@ if __name__ == "__main__":
     print(args.do_processing)
     get_breakdown_from_profiler_trace(data_dir, output_dir, process=args.do_processing)
 
-    plot_bw_and_breakdown(data_dir)
-    # plot_breakdown(data_dir)
-    # plot_bandwidths(data_dir)
+    # plot_bw_and_breakdown(data_dir)
+    plot_breakdown(data_dir)
+    plot_breakdown(data_dir, sharey=False)
+    plot_throughputs(data_dir)

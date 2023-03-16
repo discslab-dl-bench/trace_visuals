@@ -1,8 +1,15 @@
 .venv/
+.vscode/
+
 __pycache__/
 plots/
 data_processed/
 paper_timelines*/
+
+dlio_*/
+feb*/
+mar*/
+histograms/
 
 BERT_*
 DLRM_*

@@ -7,23 +7,13 @@
 
 
 
-for d in $(ls $1 | grep -E '^UNET')
+for d in $(ls $1 | grep -E 'UNET')
 do  
     echo $d
-    python3 preprocess_traces.py $1/$d unet3d -o data_feb24_proc/
-done
-for d in $(ls $1 | grep -E '^BERT')
-do  
-    echo $d
-    python3 preprocess_traces.py $1/$d bert -o data_feb24_proc/
+    python3 preprocess_traces.py $1/$d unet3d -o UNET_instru_proc/
 done
 
-# for d in $(ls data | grep 32ksteps)
-# do  
-#     echo $d
-#     python3 preprocess_traces.py data/$d dlrm
-#     python3 plot_timelines.py data_processed/$d/timeline dlrm $d
-# done
+
 
 # for d in $(ls data | grep BERT_horovod)
 # do  
