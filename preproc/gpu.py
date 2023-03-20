@@ -1,7 +1,10 @@
 import os
 import re
+import time
 import numpy as np
 from statistics import mean
+from datetime import datetime
+
 
 from .utilities import sliding_window, get_fields, get_gpu_trace
 from .mllog import get_init_start_time
@@ -47,6 +50,26 @@ def get_local_date_from_raw(raw_traces_dir) -> np.datetime64:
                 print(f"Found the local date in gpu trace: {date}\n")
                 break
     return np.datetime64(date)
+
+
+def is_trace_during_DST(raw_traces_dir):
+    """
+    Return 1 if the local date from the GPU trace is in DST, 0 otherwise.
+    """
+    gpu_trace = get_gpu_trace(raw_traces_dir)
+    pat = re.compile(r'^\s+(\d{8})\s+(\d{2}:\d{2}:\d{2}).*')
+    with open(gpu_trace, 'r') as gpu_trace:
+        date = None
+        for line in gpu_trace:
+            if match := pat.match(line):
+                date = match.group(1)
+                s_time = match.group(2)
+                # Convert from YYYYMMDD to YYYY-MM-DD
+                s_datetime = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{s_time}"
+                print(f"Found the local datetime in gpu trace: {s_datetime}\n")
+                break
+
+    return time.localtime(datetime.strptime(s_datetime, '%Y-%m-%dT%H:%M:%S').timestamp()).tm_isdst
 
 
 def get_num_gpus_from_preproc_trace(gpu_trace) -> int:

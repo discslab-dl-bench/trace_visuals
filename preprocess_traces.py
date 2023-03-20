@@ -5,7 +5,7 @@ from pathlib import Path
 from preproc.dlio import process_dlio_log
 
 from preproc.mllog import get_workload_app_log, process_mllog
-from preproc.gpu import process_gpu_trace
+from preproc.gpu import get_local_date_from_raw, is_trace_during_DST, process_gpu_trace
 from preproc.cpu import process_cpu_trace
 from preproc.align_time import convert_traces_timestamp_to_UTC
 from preproc.bio import filter_out_unwanted_processes_from_bio, process_long_bio_calls
@@ -16,10 +16,6 @@ from preproc.strace import convert_strace_tt_timestamps_to_utc
 from preproc.utilities import iostat_trace_is_present, strace_is_present
 from preproc.traces import prepare_traces_for_timeline_plot
 from preproc.write import remove_logging_writes
-
-# Depends on machine local time setting
-# For discslab-server2, UTC-4 during Daylight Savings Time and UTC-5 otherwise
-UTC_TIME_DELTA = 5
 
 # Add any new trace we want to time align here
 # We don't care about close, create_del for plotting (for now)
@@ -81,7 +77,6 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     First, process the application log
     """
     # Process the MLLOG first
-    
     if skip_to < 1:
         if workload == 'dlio':
             process_dlio_log(traces_dir, output_dir)
@@ -153,6 +148,12 @@ if __name__=='__main__':
     
     if not verify_all_traces_present(traces_dir, workload):
         exit(1)
+
+    # Set a global variable with the offset between our local time (America/Montreal) and UTC
+    # This will vary between 4 during DST and 5 otherwise.
+    # In 2023 DST is from Mar 12, 2023 2:00 AM to Nov 5, 2023 2:00 AM !
+    global UTC_TIME_DELTA
+    UTC_TIME_DELTA = 5 - is_trace_during_DST(traces_dir)
 
     preprocess_traces(traces_dir, output_dir, workload, skip_to)
 
