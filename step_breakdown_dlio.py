@@ -1,6 +1,6 @@
 import os
 import re
-import json
+import time
 import pathlib
 import argparse
 from matplotlib import patches
@@ -12,8 +12,11 @@ from pathlib import Path
 
 
 
-PATTERN_INSTRU_LINE = re.compile(r'\[INFO\] (load_batch_mem|all_compute|step_end|) (\d+)')
+PATTERN_INSTRU_LINE = re.compile(r'\[INFO\] (load_batch_mem|load_batch_inner|all_compute|step_end|) (\d+)')
 
+# Global variable to create a new plotting directory
+timestamp = int(time.time())
+plotting_dir = f'plots_{timestamp}'
 
 
 def get_smallest_common_length(data):
@@ -62,22 +65,21 @@ def generate_plotting_data(data_dir, workload):
     data_dir = Path(data_dir)
 
     log_files = sorted(list(data_dir.rglob('dlio.log')))
+    print(log_files)
 
     outfile = open(os.path.join(data_dir, f"dlio_{workload}_step_analysis.txt"), "w")
-    outfile.write(f"{'Metric':>30}\t{'Mean':>15}\t{'Median':>15}\t{'Std':>15}\t{'1st quartile':>15}\t{'3rd quart':>15}\n")
+    outfile.write(f"{'Metric':>30}\t{'Mean':>15}\t{'Std':>15}\t{'q1':>15}\t{'Median':>15}\t{'q3':>15}\n")
 
     plotting_data = {}
 
     for log_file in log_files:
         outfile.write(f"{log_file}\n")
 
-        experiment_name = log_file.parts[1]
+        experiment_name = log_file.parts[-4]
         print(experiment_name)
 
         num_gpu = get_num_gpus(experiment_name)
         batch_size = get_batch_size(experiment_name)
-        # global_batch_size = num_gpu * batch_size
-        global_batch_size = batch_size
 
         if num_gpu not in plotting_data:
             plotting_data[num_gpu] = {}
@@ -87,11 +89,13 @@ def generate_plotting_data(data_dir, workload):
         with open(log_file, 'r') as log_file:
 
             current_file_data = {
-                "data_loading_throughput": [],
-                "data_proc_throughput": [],
                 "load_batch_mem": [],
+                "load_batch_inner": [],
                 "all_compute": [],
                 "step_end": [],
+                "data_proc_throughput": [],
+                "data_loading_throughput": [],
+                "inner_data_loading_throughput": [],
             }
 
             # TODO: Don't consider first step 
@@ -121,10 +125,13 @@ def generate_plotting_data(data_dir, workload):
                     current_file_data[event].append(duration)
 
                     if event == 'load_batch_mem':
-                        data_tp = global_batch_size / duration
+                        data_tp = batch_size / duration
                         current_file_data['data_loading_throughput'].append(data_tp)
+                    if event == 'load_batch_inner':
+                        inner_data_tp = batch_size / duration
+                        current_file_data['inner_data_loading_throughput'].append(inner_data_tp)
                     elif event == 'all_compute':
-                        proc_tp = global_batch_size / duration
+                        proc_tp = batch_size / duration
                         current_file_data['data_proc_throughput'].append(proc_tp)
         
 
@@ -133,17 +140,21 @@ def generate_plotting_data(data_dir, workload):
         for key in current_file_data:
             print(key)
             mean = stats.mean(current_file_data[key])
-            median = stats.median(current_file_data[key])
             std = stats.stdev(current_file_data[key])
             quartiles = stats.quantiles(current_file_data[key])
+            q1 = quartiles[0]
+            median = quartiles[1]
+            q3 = quartiles[2]
 
             plotting_data[num_gpu][batch_size][key] = {
+                'mean': mean,
+                'std': std,
+                'q1': q1,
                 'median': median,
-                'q1': quartiles[0],
-                'q3': quartiles[2],
+                'q3': q3,
             }
             ROUND = 5
-            outfile.write(f"{key:>30}:\t{round(mean, ROUND):>15}\t{round(median, ROUND):>15}\t{round(std, ROUND):>15}\t{round(quartiles[0], ROUND):>15}\t{round(quartiles[2], ROUND):>15}\n")
+            outfile.write(f"{key:>30}:\t{round(mean, ROUND):>15}\t{round(std, ROUND):>15}\t{round(q1, ROUND):>15}\t{round(median, ROUND):>15}\t{round(q3, ROUND):>15}\n")
         outfile.write("\n")
 
     outfile.flush()
@@ -180,6 +191,7 @@ def plot_throughputs(data_dir, output_dir, workload):
 
     metrics_to_plot_pretty_names = {
         "data_loading_throughput": "Data Throughput",
+        "inner_data_loading_throughput": "Inner Data Throughput",
         "data_proc_throughput": "Processing Throughput",
     }
     metrics_to_plot = { metric: [] for metric in metrics_to_plot_pretty_names }
@@ -263,9 +275,97 @@ def plot_throughputs(data_dir, output_dir, workload):
 
 
 
+
+def plot_data_loading(plotting_data, workload, mean_or_median="median"):
+    print(f'Plotting Step breakdown summary')
+
+    ## Shorter plot 
+    metrics_pretty_names = {
+        "load_batch_mem": "Batch Loading",
+    }
+    metrics_to_plot = { metric: [] for metric in metrics_pretty_names }
+
+    # Overall plot
+    fig, ax = plt.subplots(
+        nrows=1, 
+        ncols=len(metrics_to_plot), 
+        layout="constrained", 
+        figsize=(10, 6),
+    )
+
+    GPUs_to_plot = plotting_data.keys()
+    plotted_batch_sizes = set()
+
+    FONTSIZE = 18
+
+    for metric in metrics_to_plot:
+        ax.set_title(metrics_pretty_names[metric], fontsize=FONTSIZE)
+
+        # plot the metric in the axes
+        for gpu_key in GPUs_to_plot:
+
+            batches_to_plot = sorted(list(plotting_data[gpu_key].keys()))
+            plotted_batch_sizes.update(batches_to_plot)
+
+            x = np.asarray(batches_to_plot)
+
+            y = [ plotting_data[gpu_key][batch][metric][mean_or_median] for batch in batches_to_plot ]
+            y = np.asarray(y)
+
+            # q1 = [ plotting_data[gpu_key][batch][metric]["q1"] for batch in batches_to_plot ]
+            # q1 = np.asarray(q1)
+
+            # q3 = [ plotting_data[gpu_key][batch][metric]["q3"] for batch in batches_to_plot ]
+            # q3 = np.asarray(q3)
+            
+            ax.plot(x, y, label=f"{gpu_key} GPUs", )
+
+            # ax.fill_between(x, q1, q3, alpha=0.1)
+
+        plotted_batch_sizes = sorted(list(plotted_batch_sizes))
+
+        x_axis_labels = [str(b) for b in plotted_batch_sizes]
+        ax.set_xticks(batches_to_plot, x_axis_labels, ha='center', fontsize=FONTSIZE-2)
+
+        ax.grid(True, axis="both", linestyle="--", linewidth=0.5, alpha=0.7, color="grey")
+        ax.tick_params(which="both", direction="in", labelsize=FONTSIZE-3)
+        plotted_batch_sizes = set()
+
+
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(
+        handles, 
+        labels, 
+        loc='upper right',
+        bbox_to_anchor = (-0.065, -0.05, 1, 1), 
+        bbox_transform = plt.gcf().transFigure, 
+        fontsize=FONTSIZE
+    )
+
+    fig.supylabel("Time (s)", fontsize=FONTSIZE)
+    fig.supxlabel('Batch Size', fontsize=FONTSIZE)
+
+    output_dir = os.path.join(data_dir, plotting_dir)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    filename = f"{workload}_data_loading_{mean_or_median}.png"
+    figure_filename = os.path.join(output_dir, filename)
+
+    plt.savefig(figure_filename, format="png", dpi=450)
+    print(f'Saved {figure_filename}')
+    # Clear the current axes.
+    plt.cla() 
+    # Closes all the figure windows.
+    plt.close('all')   
+    plt.close(fig)
+
+
+
+
 def plot_full_step_breakdown(data_dir, output_dir, workload):
     metrics_to_plot_pretty_names = {
         "data_loading_throughput": "Data Throughput",
+        "inner_data_loading_throughput": "Inner Data Throughput",
         "data_proc_throughput": "Processing Throughput",
         "step_end": "Overall Step",
         "load_batch_mem": "1 Batch Loading",
@@ -387,6 +487,7 @@ def plot_step_breakdown(data_dir, output_dir, workload, sharey=True):
     metrics_pretty_names = {
         "step_end": "Overall Step",
         "load_batch_mem": "1 Batch Loading",
+        "load_batch_inner": "Inner Loading",
         "all_compute": "2 Computation",
     }
     metrics_to_plot = { metric: [] for metric in metrics_pretty_names }
@@ -519,3 +620,5 @@ if __name__ == '__main__':
     plot_step_breakdown(data_dir, output_dir, workload)
     plot_step_breakdown(data_dir, output_dir, workload, sharey=False)
 
+    plot_data_loading(plotting_data, workload, mean_or_median="median")
+    plot_data_loading(plotting_data, workload, mean_or_median="mean")

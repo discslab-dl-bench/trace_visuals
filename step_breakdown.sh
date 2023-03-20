@@ -1,9 +1,8 @@
 
+mkdir -p data_step_breakdown/DLRM_1gpu/raw_data
 
-mkdir -p data_step_breakdown/UNET_2/raw_data
-
-for d in $(ls $1)
+for d in $(ls $1 | grep DLRM_ )
 do
     echo $d
-    cp $1/${d}/unet3d.log data_step_breakdown/UNET_2/raw_data/${d}.json
+    cp $1/${d}/dlrm.log data_step_breakdown/DLRM_1gpu/raw_data/${d}.json
 done

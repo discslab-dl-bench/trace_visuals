@@ -5,6 +5,8 @@ __pycache__/
 plots/
 data_processed/
 paper_timelines*/
+workloads_*/
+bert_*/
 
 dlio_*/
 feb*/
@@ -20,6 +22,7 @@ dlio_latest/
 dlio_latest_proc/
 train_times/
 mmap_analysis/
+workloads_paper/
 
 data*/
 cases/

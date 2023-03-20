@@ -102,4 +102,3 @@ def plot_histogram(data, outdir, title, filename, nbins=100):
     plt.close(fig)
 
     
-    

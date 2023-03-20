@@ -1,9 +1,11 @@
 
-import copy
+from time import time
+import os
 import re
-import statistics
 import json
+import copy
 import argparse
+import statistics
 import numpy as np
 from pathlib import Path
 from pprint import pprint
@@ -35,14 +37,16 @@ def get_num_workers(log_file_name):
         res = re.search(r'.*w([0-9]+).*', log_file_name)
     return int(res.group(1))
 
-def get_profile_subdirectories(trace_dir):
-    trace_dir = trace_dir / "data"
-    subdirs = []
-    for item in trace_dir.iterdir():
-        if item.is_dir():
-            subdirs.append(item)
+def get_profile_subdirectories(trace_dirs):
 
-    return subdirs
+    for trace_dir in trace_dirs:
+        trace_dir = trace_dir / "data"
+        subdirs = []
+        for item in trace_dir.iterdir():
+            if item.is_dir():
+                subdirs.append(item)
+
+    return sorted(subdirs)
 
 
 def get_profiler_traces(trace_dir):
@@ -52,15 +56,15 @@ def get_profiler_traces(trace_dir):
     return traces
 
 
-def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
+def get_breakdown_from_profiler_trace(trace_dirs, output_dir, process=True):
 
-    plotting_data_file = trace_dir / "processed"/ "BERT_plotting_data.json"
+    plotting_data_file = output_dir / "processed"/ "BERT_plotting_data.json"
 
     if process or not plotting_data_file.is_file():
 
         all_data = {}
 
-        profiler_dirs = get_profile_subdirectories(trace_dir)
+        profiler_dirs = get_profile_subdirectories(trace_dirs)
 
         p_memcpy = re.compile(r'.*IteratorGetNext@@MemcpyHtoD')
 
@@ -68,7 +72,7 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
         batch_sizes = []
 
         import os
-        outfile = open(os.path.join(data_dir, "bert_step_analysis.txt"), "w")
+        outfile = open(os.path.join(output_dir, "bert_step_analysis.txt"), "w")
         outfile.write(f"{'Metric':>30}\t{'Mean':>15}\t{'Median':>15}\t{'Std':>15}\t{'1st quartile':>15}\t{'3rd quart':>15}\n")
 
         for profiler_dir in profiler_dirs:
@@ -93,7 +97,7 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                         "data_proc_throughput": [],
                     }
                 }
-            else:
+            elif batch_size not in all_data[num_gpu]:
                 all_data[num_gpu][batch_size] = {
                     "all_compute": [],
                     "load_batch_to_mem": [],
@@ -101,6 +105,9 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                     "data_loading_throughput": [],
                     "data_proc_throughput": [],
                 }
+            else: 
+                # We're seeing an additional set of traces for a gpu - batch size combination
+                continue
 
             # iterate over all profiler traces
             all_traces = get_profiler_traces(profiler_dir)
@@ -221,7 +228,7 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
                         }
                     }     
 
-        plotting_data_dir = trace_dir / "processed"
+        plotting_data_dir = output_dir / "processed"
         plotting_data_dir.mkdir(exist_ok = True)
 
         with open(plotting_data_dir / "BERT_plotting_data.json", 'w') as outfile:
@@ -235,9 +242,9 @@ def get_breakdown_from_profiler_trace(trace_dir, output_dir, process=True):
 
 
 
-def plot_throughputs(trace_dir):
+def plot_throughputs(data_dir):
     # Load the data
-    with open(trace_dir / "processed" / "BERT_plotting_data.json", 'r') as infile:
+    with open(data_dir / "processed" / "BERT_plotting_data.json", 'r') as infile:
         plotting_data = json.load(infile)
 
 
@@ -419,7 +426,7 @@ def plot_bw_and_breakdown(trace_dir):
 
     fig.supxlabel('Batch Size', fontsize=FONTSIZE)
 
-    output_dir = Path(data_dir) / "plots"
+    output_dir = Path(trace_dir) / "plots"
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -524,7 +531,7 @@ def plot_breakdown(trace_dir, sharey=True):
     fig.supylabel("Time (s)", fontsize=FONTSIZE)
     fig.supxlabel('Batch Size', fontsize=FONTSIZE)
 
-    output_dir = Path(data_dir) / "plots"
+    output_dir = Path(trace_dir) / "plots"
     # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -543,21 +550,31 @@ def plot_breakdown(trace_dir, sharey=True):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("Plot step breakdown from BERT Profiler traces")
-    parser.add_argument("data_dir", help="Data directory")
-    parser.add_argument("--do-processing", "-dp", action='store_true', help="Whether to proces raw data or use saved file")
+    parser.add_argument("data_dirs", nargs='+', help="Data directories")
+    parser.add_argument("--output-dir", default=None ,help="(optional) Output directory.")
+    parser.add_argument("--do-processing", "-dp", action='store_true', default=False, help="Whether to proces raw data or use saved file")
     args = parser.parse_args()
 
-    data_dir = Path(args.data_dir)
-    if not data_dir.exists() and data_dir.is_dir():
-        print(f"Invalid data directory given: {data_dir}")
+    data_dirs = []
+    for data_dir in args.data_dirs:
+        data_dir = Path(data_dir)
+        if not data_dir.exists() and data_dir.is_dir():
+            print(f"Invalid data directory given: {data_dir}")
+        data_dirs.append(data_dir)
+    
+    if len(data_dirs) == 0:
+        print(f'ERROR: No valid data directories given')
+        exit(-1)
 
-    output_dir = Path('bert_breakdown/')
+    if args.output_dir is None:
+        args.output_dir = "bert_breakdown/"
+
+    output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
     
-    print(args.do_processing)
-    get_breakdown_from_profiler_trace(data_dir, output_dir, process=args.do_processing)
+    get_breakdown_from_profiler_trace(data_dirs, output_dir, process=args.do_processing)
 
     # plot_bw_and_breakdown(data_dir)
-    plot_breakdown(data_dir)
-    plot_breakdown(data_dir, sharey=False)
-    plot_throughputs(data_dir)
+    plot_breakdown(output_dir)
+    plot_breakdown(output_dir, sharey=False)
+    plot_throughputs(output_dir)
