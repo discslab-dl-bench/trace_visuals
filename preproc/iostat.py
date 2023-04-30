@@ -30,7 +30,7 @@ def iostat_to_csv(raw_traces_dir, preproc_traces_dir, UTC_TIME_DELTA):
         for header in first_diskstat.keys():
             headers.append(header)
 
-        print(headers)
+        # print(headers)
         outcsv.write(",".join(headers) + "\n")
 
         # Iterate through the iostat file and write the values in CSV format

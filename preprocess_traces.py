@@ -5,7 +5,7 @@ from pathlib import Path
 from preproc.dlio import process_dlio_log
 
 from preproc.mllog import get_workload_app_log, process_mllog
-from preproc.gpu import get_local_date_from_raw, is_trace_during_DST, process_gpu_trace
+from preproc.gpu import is_trace_during_DST, process_gpu_trace
 from preproc.cpu import process_cpu_trace
 from preproc.align_time import convert_traces_timestamp_to_UTC
 from preproc.bio import filter_out_unwanted_processes_from_bio, process_long_bio_calls
@@ -53,8 +53,12 @@ def verify_all_traces_present(traces_dir, workload) -> bool:
         if not path.isfile(expected_filename):
 
             print(f'Did not find {expected_filename}, trying again')
-
-            found_file = str(next(Path(traces_dir).rglob(trace)))
+            
+            try:
+                found_file = str(next(Path(traces_dir).rglob(trace)))
+            except:
+                print(f'ERROR: Missing essential trace {expected_filename}')
+                exit(-1)
 
             if len(found_file) == 0:
                 print(f'ERROR: Missing essential trace {expected_filename}')
@@ -76,12 +80,12 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     Preprocessing pipeline.
     First, process the application log
     """
-    # Process the MLLOG first
+    # Process the MLLOG or DLIO log first
     if skip_to < 1:
         if workload == 'dlio':
-            process_dlio_log(traces_dir, output_dir)
+            process_dlio_log(traces_dir, preproc_traces_dir)
         else:
-            process_mllog(traces_dir, output_dir, workload)
+            process_mllog(traces_dir, preproc_traces_dir, workload)
 
     if skip_to < 2:
         # Time-align traces
@@ -92,7 +96,8 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     if skip_to < 3:
         remove_logging_writes(preproc_traces_dir, workload)
         # Remove p99 latency bio calls - for plotting ~aesthetics~
-        process_long_bio_calls(preproc_traces_dir)
+        # process_long_bio_calls(preproc_traces_dir)
+        
         # Remove unwanted processes form the bio trace
         filter_out_unwanted_processes_from_bio(preproc_traces_dir, workload)
         # We sometimes get some absurdly large (i.e. > 10^20 B) returned read byes in the read trace
@@ -127,15 +132,22 @@ if __name__=='__main__':
     p = argparse.ArgumentParser(description="Preprocess the output of the tracing scripts for plotting")
     p.add_argument("traces_dir", help="Directory where raw traces are")
     p.add_argument("workload", help="Which workload was run", choices=['unet3d', 'bert', 'dlrm', 'dlio'])
-    p.add_argument("-o", "--output-dir", default="data_processed", help="Processed traces directory. Default is 'data_processed/'")
+    p.add_argument("-o", "--output-dir", default=None, help="Processed traces directory. \
+                   Default will be in a 'processed/' folder in the raw traces directory.")
     p.add_argument("-s", "--skip-to", type=int, default=0, help="Skip to a certain step in the pipeline.")
+    p.add_argument("-ml", "--mllog-only", action="store_true", help="Process only the mllog/dliolog")
     args = p.parse_args()
 
     traces_dir = args.traces_dir
     trace_basename = pathlib.Path(args.traces_dir).name
-    output_dir = path.join(args.output_dir, trace_basename)
     workload = args.workload
     skip_to = args.skip_to
+    mllog_only = args.mllog_only
+
+    if args.output_dir is None:
+        output_dir = path.join(traces_dir, 'processed')
+    else:
+        output_dir = path.join(args.output_dir, trace_basename)
 
     if not path.isdir(traces_dir):
         print(f"ERROR: Invalid trace directory {traces_dir}")
@@ -146,6 +158,14 @@ if __name__=='__main__':
         print(f"Creating output directory {output_dir}")
         pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     
+    if mllog_only:
+        if workload == 'dlio':
+            process_dlio_log(traces_dir, output_dir)
+        else:
+            process_mllog(traces_dir, output_dir, workload)
+        exit()
+
+
     if not verify_all_traces_present(traces_dir, workload):
         exit(1)
 

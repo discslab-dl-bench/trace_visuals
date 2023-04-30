@@ -143,7 +143,7 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
                 cols = get_fields(line)
                 # Handle empty lines
                 if cols[0] == "":
-                    print(f"\t\t{filename} line {i} is empty. Continuing.")
+                    # print(f"\t\t{filename} line {i} is empty. Continuing.")
                     continue
 
                 # Handle lines that don't have the expected number of columns
