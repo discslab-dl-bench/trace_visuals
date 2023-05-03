@@ -19,7 +19,6 @@ from sklearn.linear_model import LinearRegression
 
 from step_breakdown_dlio import OOMFormatter
 
-# Data dictionary that will hold duration values for each epoch
 
 
 METRICS_PER_WORKLOAD = {
@@ -730,7 +729,7 @@ def plot_throughputs(plotting_data, output_dir, workload, legend=False, title=No
         # 'step_throughput': 'Step Throughput',
         "from_disk_throughput": "VFS Throughput",
         "data_loading_throughput": "Data Throughput",
-        "data_proc_throughput": "C Throughput",
+        "data_proc_throughput": "Compute Throughput",
     }
     metrics_to_plot = { metric: [] for metric in metrics_to_plot_pretty_names }
 
@@ -1149,9 +1148,16 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--title", default=None, help="Additonal string to put after workload name for plots")
     parser.add_argument("-l", "--legend", action="store_true", help="Add legend ot plots")
     parser.add_argument("-f", "--fit", action="store_true", help="Fit model to distributions or not")
-    parser.add_argument("-bh", "--big-histo", action="store_true", help="Plot big histogram file")
+    parser.add_argument("-pb", "--breakdown", action="store_true", help="Plot the step breakdown.")
+    parser.add_argument("-pt", "--throughputs", action="store_true", help="Plot the throughputs.")
+    parser.add_argument("-pl", "--latencies", action="store_true", help="Plot the latencies.")
+    parser.add_argument("-bh", "--big-histo", action="store_true", help="Save file with all compute time distributions and fits for the annex.")
     args = parser.parse_args()
 
+
+    if not (args.breakdown or args.throughputs or args.latencies):
+        print('No type of plot requested. Exiting.')
+        exit()
 
     data_dirs = args.data_dirs
     workload = args.workload.upper()
@@ -1173,14 +1179,14 @@ if __name__ == '__main__':
 
     plotting_data, all_data = preprocess_data(data_dirs, output_dir, workload, fit=fit, big_histo=big_histo, title=title)
 
-    plot_throughputs(plotting_data, output_dir, workload, title=title, legend=legend)
-    plot_latencies(plotting_data, output_dir, workload, title=title, legend=legend)
-    plot_step_breakdown(plotting_data, output_dir, workload, sharey=False, title=title, legend=legend)
-    exit()
+    if args.breakdown:
+        plot_step_breakdown(plotting_data, output_dir, workload, sharey=False, title=title, legend=legend)
 
+    if args.throughputs:
+        plot_throughputs(plotting_data, output_dir, workload, title=title, legend=legend)
 
+    if args.latencies:
+        plot_latencies(plotting_data, output_dir, workload, title=title, legend=legend)
 
-    plot_step_breakdown(plotting_data, output_dir, workload, sharey=True, title=title, legend=legend)
-    # plot_full_breakdown(plotting_data, output_dir, workload, sharey=False, title=title)
 
 

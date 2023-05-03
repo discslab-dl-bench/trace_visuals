@@ -851,7 +851,15 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--output-dir", help="Output directory", default='data_step_breakdown')
     parser.add_argument("-t", "--title", help="Title for plots", default=None)
     parser.add_argument("-l", "--legend", action="store_true", help="Add the legend", default=None)
+    parser.add_argument("-pb", "--breakdown", action="store_true", help="Plot the step breakdown.")
+    parser.add_argument("-pt", "--throughputs", action="store_true", help="Plot the throughputs.")
+    parser.add_argument("-pl", "--latencies", action="store_true", help="Plot the latencies.")
     args = parser.parse_args()
+
+
+    if not (args.breakdown or args.throughputs or args.latencies):
+        print('No type of plot requested. Exiting.')
+        exit()
 
     data_dirs = args.data_dirs
     output_dir = args.output_dir
@@ -870,18 +878,13 @@ if __name__ == '__main__':
     
     Path(output_dir).mkdir(exist_ok=True, parents=True)
 
-
     plotting_data = generate_plotting_data(data_dirs, output_dir, workload)
 
-    plot_throughputs(plotting_data, output_dir, workload, title=title, legend=legend)
-    plot_latencies(plotting_data, output_dir, workload, mean_or_median="median", title=title, legend=legend)
+    if args.breakdown:
+        plot_step_breakdown(plotting_data, output_dir, workload, title=title, legend=legend)
 
-    exit()
-    plot_step_breakdown(plotting_data, output_dir, workload, title=title, legend=legend)
-    # plot_step_breakdown(data_dir, output_dir, workload, sharey=False, title=title)
+    if args.throughputs:
+        plot_throughputs(plotting_data, output_dir, workload, title=title, legend=legend)
 
-    # plot_data_loading(plotting_data, workload, mean_or_median="median", title=title)
-    # plot_data_loading(plotting_data, workload, mean_or_median="mean", fill_between=False, title=title)
-
-    # plot_sample_load(plotting_data, output_dir, workload, mean_or_median="mean", title=title)
-    # plot_sample_load(plotting_data, output_dir, workload, mean_or_median="mean", fill_between=False, title=title)
+    if args.latencies:
+        plot_latencies(plotting_data, output_dir, workload, mean_or_median="median", title=title, legend=legend)

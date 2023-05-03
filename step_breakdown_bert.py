@@ -652,9 +652,15 @@ if __name__ == "__main__":
     parser.add_argument("data_dirs", nargs='+', help="Data directories")
     parser.add_argument("-o", "--output-dir", default=None ,help="(optional) Output directory.")
     parser.add_argument("-t", "--title", default=None, help="(optional) Plot title.")
-    parser.add_argument("--do-processing", "-dp", action='store_true', default=False, help="Whether to proces raw data or use saved file")
-    parser.add_argument("-bh", "--big-histo", action="store_true", help="Plot big histogram file")
+    parser.add_argument("-b", "--breakdown", action="store_true", help="Plot the step breakdown.")
+    parser.add_argument("-tp", "--throughputs", action="store_true", help="Plot the throughputs.")
+    parser.add_argument("-bh", "--big-histo", action="store_true", help="Save file with all compute time distributions and fits for the annex.")
+    parser.add_argument("-dp", "--do-processing", action='store_true', default=False, help="Whether to proces raw data (long) or use saved file")
     args = parser.parse_args()
+
+    if not (args.breakdown or args.throughputs):
+        print('No type of plot requested. Exiting.')
+        exit()
 
     title = args.title
 
@@ -677,6 +683,9 @@ if __name__ == "__main__":
     
     get_breakdown_from_profiler_trace(data_dirs, output_dir, process=args.do_processing, big_histo=args.big_histo)
 
-    plot_throughputs(output_dir, title=title)
+    if args.breakdown:
+        plot_breakdown(output_dir, sharey=False)
+        
+    if args.throughputs:
+        plot_throughputs(output_dir, title=title)
 
-    plot_breakdown(output_dir, sharey=False)
