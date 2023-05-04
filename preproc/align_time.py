@@ -158,7 +158,6 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
 
                     if not got_expected:
                         error_count += 1
-                        print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
                         if error_count > MAX_ERR_COUNT:
                             print(f"\nERROR: More than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
                             print(f"You might be processing an older trace. Change the expected number of columns to match.\n")
@@ -167,7 +166,6 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
                 else:
                     if len(cols) != expected_num_cols:
                         error_count += 1
-                        print(f"\t\t{filename} line {i} does not have the expected number of columns. Wanted {expected_num_cols}, got {len(cols)}. Continuing.")
                         if error_count > MAX_ERR_COUNT:
                             print(f"\nERROR: nMore than {MAX_ERR_COUNT} errors during processing of {filename}. Aborting.")
                             print(f"You might be processing an older trace. Change the expected number of columns to match.\n")
@@ -177,7 +175,6 @@ def convert_traces_timestamp_to_UTC(traces_dir, output_dir, traces_to_align, tra
                 # Handle lines that don't start with a number - they should be catched by the expected
                 # Number of columns check most of the time but one could slip by.
                 if re.match(regex_start_w_number, line) is None:
-                    print(f"\t\t{filename} line {i} does not start with a number. Continuing.")
                     continue
 
                 # Get the timestamp

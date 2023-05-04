@@ -1,16 +1,15 @@
-import copy
 import os
 import re
 import time
+import copy
 import pathlib
 import argparse
-from matplotlib import patches
+import matplotlib
 import numpy as np
+from pathlib import Path
 import statistics as stats
 import matplotlib.pyplot as plt
-import matplotlib
-from matplotlib.ticker import MaxNLocator, ScalarFormatter, StrMethodFormatter
-from pathlib import Path
+from matplotlib.ticker import StrMethodFormatter
 
 
 
@@ -100,23 +99,37 @@ PATTERN_START_EPOCH = re.compile(r'.*Starting epoch ([0-9]+)')
 FONTSIZE = 24
 
 
-def get_all_log_files(data_dirs, workload):
-    log_files = []
+def get_all_experiment_log_files(data_dirs):
+    log_files = {}
 
     for data_dir in data_dirs:
         data_dir  = Path(data_dir)
         for trace_dir in data_dir.iterdir():
-            log_files.extend(list(trace_dir.rglob(f'dlio.log')))
-    
-    return sorted(log_files)
+            if trace_dir.is_dir():
+                # Find all DLIO logs within
+                logs = list(trace_dir.rglob(f'dlio.log'))
+                if len(logs) > 0:
+                    log_file = logs[0]
+                    gpus = get_num_gpus(trace_dir.name)
+                    batch = get_batch_size(trace_dir.name)
+
+                    if gpus in log_files:
+                        if batch in log_files[gpus]:
+                            log_files[gpus][batch].append(log_file)
+                        else:
+                            log_files[gpus][batch] = [log_file]
+                    else:
+                        log_files[gpus] = {
+                            batch: [log_file]
+                        }
+    return log_files
 
 
 def generate_plotting_data(data_dirs, output_dir, workload):
 
     output_dir = Path(output_dir)
 
-    log_files = get_all_log_files(data_dirs, workload)
-    # print(log_files)
+    run_config_to_log_files_map = get_all_experiment_log_files(data_dirs)
 
     all_data = {}
 
@@ -143,69 +156,66 @@ def generate_plotting_data(data_dirs, output_dir, workload):
         all_metrics['from_disk_throughput'] = []
 
 
-    for log_file in log_files:
-        # outfile.write(f"{log_file}\n")
+    # For each combination of GPU and batch size, 
+    # go through the log files and extract relevant data
+    for gpu in run_config_to_log_files_map:
 
-        experiment_name = log_file.parts[-4]
-        # print(experiment_name)
+        all_data[gpu] = {}
 
-        num_gpu = get_num_gpus(experiment_name)
-        batch_size = get_batch_size(experiment_name)
+        for batch in run_config_to_log_files_map[gpu]:
+            all_data[gpu][batch] = { metric: [] for metric in all_metrics }
 
-        if num_gpu not in all_data:
-            all_data[num_gpu] = {
-                batch_size: { metric: [] for metric in all_metrics }
-            }
-        else:
-            if batch_size not in all_data[num_gpu]: 
-                all_data[num_gpu][batch_size] = { metric: [] for metric in all_metrics }
-        
-        epoch = 0
-        seen_evts = set()
-        with open(log_file, 'r') as log_file:
+            log_files = run_config_to_log_files_map[gpu][batch]
 
-            for line in log_file:
 
-                if m := re.match(PATTERN_START_EPOCH, line):
-                    # print(line)
-                    epoch = int(m.group(1))
-                    seen_evts = set()
-
-                if workload == 'unet3d':
-                    if epoch == 1:
-                        continue
+            for log_file in log_files:
                 
-                if m := re.match(PATTERN_INSTRU_LINE[workload], line):
-                    event = m.group(1)
-                    duration = int(m.group(2)) / 1_000_000_000   # convert to seconds
+                epoch = 0
+                seen_evts = set()
+                with open(log_file, 'r') as log_file:
 
-                    # Skip the first step by making sure we've seen the 3 events
-                    # everytime we're in a new epoch
-                    if len(seen_evts) < 3:
-                        seen_evts.add(event)
-                        continue
+                    for line in log_file:
 
-                    all_data[num_gpu][batch_size][event].append(duration)
+                        if m := re.match(PATTERN_START_EPOCH, line):
+                            # print(line)
+                            epoch = int(m.group(1))
+                            seen_evts = set()
 
-                    if event == 'load_batch_mem':
-                        # data_tp = batch_size / duration
-                        # all_data[num_gpu][batch_size]['data_loading_throughput'].append(data_tp)
-                        pass
-                    elif event == 'load_batch_inner':
-                        inner_data_tp = batch_size / duration
-                        all_data[num_gpu][batch_size]['data_loading_throughput'].append(inner_data_tp)
-                    elif event == 'all_compute':
-                        proc_tp = batch_size / duration
-                        all_data[num_gpu][batch_size]['data_proc_throughput'].append(proc_tp)
-                    elif event in ['sample_load', 'load_sample']:
-                        sample_tp = 1 / duration 
-                        all_data[num_gpu][batch_size]['sample_load_throughput'].append(sample_tp)
-                    elif event in ['batch_load', 'load_batch']:
-                        batch_tp = batch_size / duration 
-                        all_data[num_gpu][batch_size]['from_disk_throughput'].append(batch_tp)
-                    elif event == 'step_end':
-                        batch_tp = batch_size / duration 
-                        all_data[num_gpu][batch_size]['step_throughput'].append(batch_tp)
+                        if workload == 'unet3d':
+                            if epoch == 1:
+                                continue
+                        
+                        if m := re.match(PATTERN_INSTRU_LINE[workload], line):
+                            event = m.group(1)
+                            duration = int(m.group(2)) / 1_000_000_000   # convert to seconds
+
+                            # Skip the first step by making sure we've seen the 3 events
+                            # everytime we're in a new epoch
+                            if len(seen_evts) < 3:
+                                seen_evts.add(event)
+                                continue
+
+                            all_data[gpu][batch][event].append(duration)
+
+                            if event == 'load_batch_mem':
+                                # data_tp = batch_size / duration
+                                # all_data[num_gpu][batch_size]['data_loading_throughput'].append(data_tp)
+                                pass
+                            elif event == 'load_batch_inner':
+                                inner_data_tp = batch / duration
+                                all_data[gpu][batch]['data_loading_throughput'].append(inner_data_tp)
+                            elif event == 'all_compute':
+                                proc_tp = batch / duration
+                                all_data[gpu][batch]['data_proc_throughput'].append(proc_tp)
+                            elif event in ['sample_load', 'load_sample']:
+                                sample_tp = 1 / duration 
+                                all_data[gpu][batch]['sample_load_throughput'].append(sample_tp)
+                            elif event in ['batch_load', 'load_batch']:
+                                batch_tp = batch / duration 
+                                all_data[gpu][batch]['from_disk_throughput'].append(batch_tp)
+                            elif event == 'step_end':
+                                batch_tp = batch / duration 
+                                all_data[gpu][batch]['step_throughput'].append(batch_tp)
 
 
     # Deepcopy all_data but we'll replace the arrays with dictionaries of summary stats
@@ -293,14 +303,14 @@ def plot_throughputs(plotting_data, output_dir, workload, legend=False, title=No
     batches_to_plot = batches_int
     batches_to_plot_str = batches_str
 
+    fig_height = 4 if workload =='bert' else 5
 
     # Overall plot
     fig, axes = plt.subplots(
         nrows=1, 
         ncols=len(metrics_to_plot.keys()), 
         layout="constrained", 
-        # figsize=(max(6 * len(metrics_to_plot), 10), 6),
-        figsize=(max(6 * len(metrics_to_plot), 10), 4),
+        figsize=(max(6 * len(metrics_to_plot), 10), fig_height),
     )
 
     plotted_batch_sizes = set()
@@ -845,7 +855,7 @@ def plot_step_breakdown(plotting_data, output_dir, workload, sharey=True, legend
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Calculate average times spent in diff phases of training")
+    parser = argparse.ArgumentParser("Process DLIO instrumentation data and generate plots")
     parser.add_argument("data_dirs", nargs='+', help="Data directories")
     parser.add_argument("workload", help="Workload", choices=['unet3d', 'bert', 'dlrm'])
     parser.add_argument("-o", "--output-dir", help="Output directory", default='data_step_breakdown')

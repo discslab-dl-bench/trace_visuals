@@ -1,19 +1,18 @@
 
-from time import time
 import os
 import re
 import json
 import copy
 import argparse
 import statistics
-from matplotlib.ticker import StrMethodFormatter
 import numpy as np
 from pathlib import Path
 from pprint import pprint
 from matplotlib import pyplot as plt
+from matplotlib.ticker import StrMethodFormatter
 
-from step_breakdown import add_headers, fit_linear_to_distribs, fit_normal_distrib_and_plot, single_histogram
-from step_breakdown_dlio import OOMFormatter
+from proc_instru_data import add_headers, fit_linear_to_distribs, fit_normal_distrib_and_plot, single_histogram
+from proc_instru_data_dlio import OOMFormatter
 
 
 def get_num_gpus(log_file_name):
@@ -648,7 +647,7 @@ def plot_data_loading(data_dir, mean_or_median="median", fill_between=True, lege
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser("Plot step breakdown from BERT Profiler traces")
+    parser = argparse.ArgumentParser(description="Plot step breakdown and throughputs from BERT Profiler traces.")
     parser.add_argument("data_dirs", nargs='+', help="Data directories")
     parser.add_argument("-o", "--output-dir", default=None ,help="(optional) Output directory.")
     parser.add_argument("-t", "--title", default=None, help="(optional) Plot title.")

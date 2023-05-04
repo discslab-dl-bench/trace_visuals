@@ -16,7 +16,6 @@ def plot_all_configs(data_dir, workload, title, all_plots=False, paper_only=Fals
     Create a timeline plot for every configuration present under data_dir/timeline/pid.
     Create a 'paper format' plot using the all_combined config, which should always exist.
     """
-    print(data_dir)
     # Each timeline configuration has a directory under data_dir/pid
     timeline_dirs = [f.path for f in os.scandir(join(data_dir, 'pid')) if f.is_dir()]
 
@@ -53,8 +52,6 @@ def plot_all_configs(data_dir, workload, title, all_plots=False, paper_only=Fals
         +  np.timedelta64(milliseconds, 'ms') \
         +  np.timedelta64(microseconds, 'us') \
         +  np.timedelta64(nanoseconds, 'ns') 
-
-    print(min_timestamp)
 
 
     if not paper_only:
@@ -277,8 +274,6 @@ def plot_trace_timeline(timeline_dir, timeline_file, plotting_info, ax, timeline
     """
     Plots the BPF traces onto a timeline.
     """
-    print(f"Plotting timeline {os.path.basename(timeline_file)}")
-
     bar_height = timeline_config['bar_height']
     ymins = timeline_config['ymins']
     categories = timeline_config['categories']
@@ -393,7 +388,6 @@ def plot_mllog_events(data_dir, ax, plot_config, min_timestamp, fontsize=16, plo
     df.start_date = pd.to_datetime(df.start_date).astype('datetime64[ns]') - min_timestamp
     df.end_date = pd.to_datetime(df.end_date).astype('datetime64[ns]') - min_timestamp
 
-    print(df)
 
     if start is not None:
         print(f"Filtering with start date >= {start}")
@@ -555,12 +549,6 @@ def plot_pids_timeline_cpu_gpu(data_dir, timeline_dir, workload, title, min_time
         'bar_height': 1
     }
 
-    # # TODO DLIO
-    # if workload == "unet3d":
-    #     mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
-    # elif workload == "dlrm":
-    #     mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold", EVAL="darkorchid", CHECKPOINT="mediumvioletred")
-    # else:
     mllog_event_plot_config['colors_dict'] = dict(INIT="blue", TRAINING="gold",  EVAL="darkorchid", CHECKPOINT="mediumvioletred")
 
     legends ={}

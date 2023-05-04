@@ -2,23 +2,20 @@ import os
 import re
 import json
 import copy
-from pathlib import Path
-import argparse
 import time
-from matplotlib import patches
+import argparse
 import numpy as np
+from pathlib import Path
 import statistics as stats
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter, StrMethodFormatter
 
-from pprint import pprint
 
 from scipy.stats import norm, linregress
 
 from sklearn.linear_model import LinearRegression
 
-from step_breakdown_dlio import OOMFormatter
-
+from proc_instru_data_dlio import OOMFormatter
 
 
 METRICS_PER_WORKLOAD = {
@@ -26,13 +23,6 @@ METRICS_PER_WORKLOAD = {
         "step_end": "Overall step",
         "load_batch_mem": "1 Batch load to mem",
         "all_compute": "2 Computation",
-        # "eval_sliding_window": "eval compute",
-        # "load_batch_gpu": "2.1 Batch load to GPU",
-        # "model_forward_pass": "2.2 Forward pass",
-        # "loss_tensor_calc": "2.3 Loss calculation",
-        # "model_backward_pass": "2.4 Backward pass",
-        # "model_optim_step": "2.5 Optimizer step", 
-        # "cum_loss_fn_calc": "2.6 Cumulative loss",
         "sample_load": "Sample load",
         "sample_preproc": "Sample preprocessing",
     },
@@ -40,10 +30,6 @@ METRICS_PER_WORKLOAD = {
         "step_end": "Overall step",
         "load_batch_mem": "1 Batch load to mem",
         "all_compute": "2 Computation",
-        # "model_forward_pass": "2.1 Forward pass",
-        # "loss_tensor_calc": "2.2 Loss calculation",
-        # "model_backward_pass": "2.3 Backward pass",
-        # "model_optim_step": "2.4 Optimizer step",
         "batch_load": "Batch from disk",
         "batch_preproc": "Batch preproc",
     }
@@ -106,7 +92,7 @@ def get_num_workers(log_file_name):
         res = re.search(r'.*w([0-9]+).*', log_file_name)
     return int(res.group(1))
 
-def get_all_log_files(data_dirs):
+def get_all_experiment_log_files(data_dirs):
     log_files = []
     for data_dir in data_dirs:
         log_files.extend([os.path.join(data_dir, 'raw_data', f) for f in os.listdir(os.path.join(data_dir, 'raw_data'))])
@@ -118,7 +104,7 @@ def preprocess_data(data_dirs, output_dir, workload, fit=False, big_histo=False,
 
     output_dir = Path(output_dir)
 
-    log_files = get_all_log_files(data_dirs)
+    log_files = get_all_experiment_log_files(data_dirs)
 
     metrics_pretty_names = METRICS_PER_WORKLOAD[workload]
     events_of_interest = set(metrics_pretty_names)
@@ -332,62 +318,6 @@ def preprocess_data(data_dirs, output_dir, workload, fit=False, big_histo=False,
                     outfile.write(f"{metric:>30}:\t{round(mean, ROUND):>15}\t{round(std, ROUND):>15}\t{round(quartiles[0], ROUND):>15}\t{round(quartiles[1], ROUND):>15}\t{round(quartiles[2], ROUND):>15}\n")
             outfile.write("\n")
 
-    # all_evals = np.asarray(all_evals)
-    # eval_std = all_evals.std()
-    # eval_mean = all_evals.mean()
-
-
-    # fig, ax = plt.subplots(ncols=1, nrows=1, constrained_layout=True, figsize=(15,15))
-
-    # ax.hist(all_evals, bins=100)
-
-    # # Create output directory if it doesn't exist
-    # outdir = Path(output_dir) / "histograms"
-    # outdir.mkdir(parents=True, exist_ok=True)
-
-    # figure_filename = outdir / f'evals.png'
-
-    # plt.savefig(figure_filename, format="png", dpi=250)
-    # # Clear the current axes.
-    # plt.cla() 
-    # # Closes all the figure windows.
-    # plt.close('all')   
-    # plt.close(fig)
-
-    # print(f'Eval: mean: {eval_mean} std: {eval_std}')
-
-
-    # print('Exporting simulation sleep times')
-    # simulation_sleep_time = {}
-
-    # for gpu_key in plotting_data:
-    #     for batch_key in plotting_data[gpu_key]:
-
-    #         if gpu_key in simulation_sleep_time:
-    #             simulation_sleep_time[gpu_key][batch_key] = {
-    #                 'mean': plotting_data[gpu_key][batch_key]['all_compute']['mean'],
-    #                 'std': plotting_data[gpu_key][batch_key]['all_compute']['std'],
-    #                 'median': plotting_data[gpu_key][batch_key]['all_compute']['median'],
-    #                 'q1': plotting_data[gpu_key][batch_key]['all_compute']['q1'],
-    #                 'q3': plotting_data[gpu_key][batch_key]['all_compute']['q3'],
-    #             }
-    #         else:
-    #             simulation_sleep_time[gpu_key] = {
-    #                 batch_key: {
-    #                     'mean': plotting_data[gpu_key][batch_key]['all_compute']['mean'],
-    #                     'std': plotting_data[gpu_key][batch_key]['all_compute']['std'],
-    #                     'median': plotting_data[gpu_key][batch_key]['all_compute']['median'],
-    #                     'q1': plotting_data[gpu_key][batch_key]['all_compute']['q1'],
-    #                     'q3': plotting_data[gpu_key][batch_key]['all_compute']['q3'],
-    #                 }
-    #             }     
-
-
-    # with open(output_dir / f"{workload}_sleep_times.json", "w") as outfile:
-    #     json.dump(simulation_sleep_time, outfile, indent=4)
-    
-        
-    
     return plotting_data, all_data
 
 
@@ -403,7 +333,6 @@ def add_headers(
     **text_kwargs
 ):
     # Based on https://stackoverflow.com/a/25814386
-
     axes = fig.get_axes()
 
     for ax in axes:
@@ -1141,12 +1070,12 @@ def plot_full_breakdown(plotting_data, output_dir, workload, sharey=True, legend
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Calculate average times spent in diff phases of training")
+    parser = argparse.ArgumentParser(description="Generate step breakdowns, throughputs and latencies plots from UNET3D and DLRM instrumentation data.")
     parser.add_argument("data_dirs", nargs='+', help="Data directories")
     parser.add_argument("workload", help="Workload", choices=['unet3d', 'dlrm'])
     parser.add_argument("-o", "--output-dir", default=None, help="Output directory. Defaults to the data directory for single dir and 'data_step_breakdown' for multiple data directories.")
     parser.add_argument("-t", "--title", default=None, help="Additonal string to put after workload name for plots")
-    parser.add_argument("-l", "--legend", action="store_true", help="Add legend ot plots")
+    parser.add_argument("-l", "--legend", action="store_true", help="Add legend to plots")
     parser.add_argument("-f", "--fit", action="store_true", help="Fit model to distributions or not")
     parser.add_argument("-pb", "--breakdown", action="store_true", help="Plot the step breakdown.")
     parser.add_argument("-pt", "--throughputs", action="store_true", help="Plot the throughputs.")

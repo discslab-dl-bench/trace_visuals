@@ -95,8 +95,6 @@ def preprocess_traces(traces_dir, preproc_traces_dir, workload, skip_to=0):
     # Some extra preprocessing
     if skip_to < 3:
         remove_logging_writes(preproc_traces_dir, workload)
-        # Remove p99 latency bio calls - for plotting ~aesthetics~
-        # process_long_bio_calls(preproc_traces_dir)
         
         # Remove unwanted processes form the bio trace
         filter_out_unwanted_processes_from_bio(preproc_traces_dir, workload)
