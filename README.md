@@ -6,7 +6,7 @@ https://mcgill-my.sharepoint.com/:u:/g/personal/oana_balmau_mcgill_ca/EV8SApq87y
 
 https://mcgill-my.sharepoint.com/:u:/g/personal/oana_balmau_mcgill_ca/Ecmosl4mMFlDry-HH8oDDDIBKb1ZQJhLQ4s80M-BSa34JQ?e=HeLksK
 
-Decompress the archives and run
+Decompress the archives in the root of this directory and run the following scripts to generate all plots from the paper.
 ```
 ./generate_timeline_plots.sh
 ./generate_instrumentation_plots.sh
@@ -15,6 +15,7 @@ Decompress the archives and run
 ## Generating new timeline plots
 
 ### Preprocessing the raw data
+To create a new timeline plot, yuo first need trace data obtained by running `tracing_tools/trace_v2.sh` on a workload. See the `tracing_tools` submodule for information on this. Given trace data, you must first preprocess the data in a plotable form using `preprocess_traces.py`.
 
 ```
 $ python3 preprocess_traces.py -h
@@ -37,11 +38,12 @@ options:
 ```
 
 ### Plotting the preprocessed data
+Once the traces are preprocessed, you can generate the timeline plots. The ones from the paper are generated using the `-s` and `-po` options, but remove them for more plots, including iostat and CPU information.
 
-Plots will be created under `plots/` in the preprocessed data directory.
+Plots will be created under `plots/` and `paper_plots/` directories in the preprocessed data directory.
 ```
 $ python3 plot_timelines.py -h
-usage: plot_timelines.py [-h] [-a] data_dir {unet3d,bert,dlrm,dlio} experiment_name
+usage: plot_timelines.py [-h] [-po] [-a] [-s] data_dir {unet3d,bert,dlrm,dlio} experiment_name
 
 Create the timeline plots for a given run
 
@@ -51,14 +53,16 @@ positional arguments:
                         Workload name
   experiment_name       Plot title
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
+  -po, --paper-only     Generate only paper plots
   -a, --all-plots       Generate all the default zooms into the timeline (first 5min, first epoch, etc.)
+  -s, --short           Generate short plot (half the length)
 ```
 
 ## Generating new instrumentation plots
-
-In this section, we assume you have trace data for a set of runs with the following structure:
+For instrumentation plots, you must have application/profiler logs for a set of runs of a workload, across varying number of GPUs and batch size.
+We assume this data is organized as follows: 
 ```
 experiment_name/
     config_1gpu_1batch
@@ -68,49 +72,49 @@ experiment_name/
     config_2gpu_2batch
     ...
 ```
-Refer to `generate_instrumentation_plots.sh` for an example.
 
-The processing differs based on the workload.
+The processing differs based on the workload, with UNET3D and DLRM treated together, DLIO and BERT treated separately.
 
 ### For UNET3D and DLRM:
   
-- Pre-process the raw application log for each configuration and turn it to valid JSON. You can run `preprocess_traces.py` with the `-ml` option to do this (or without the option to process all of the trace data, but we only need the log).
-- Create a new directory with all the application logs renamed to the configuration details contained under `raw_data/`:
-  ```
-  instrumentation_data/
-      experiment_name/
-          raw_data/
-              config_1gpu_1batch.json
-              config_1gpu_2batch.json
-              config_1gpu_3batch.json
-              ...
-  ```
-  You can use the `prepare_instru_unet_dlrm.sh` script for this.
+Each run's application log must be preprocessed using `preprocess_traces.py -ml`. The `-ml` option only processes the application log.
+
+Then, create a new directory with all the application logs renamed to the configuration details contained under `raw_data/`:
+```
+instrumentation_data/
+    experiment_name/
+        raw_data/
+            config_1gpu_1batch.json
+            config_1gpu_2batch.json
+            config_1gpu_3batch.json
+            ...
+```
+You can use the `prepare_instru_unet_dlrm.sh` script for this.
 
 - Run `proc_instru_data.py` :
+```
+$ python3 proc_instru_data.py -h
+  usage: proc_instru_data.py [-h] [-o OUTPUT_DIR] [-t TITLE] [-l] [-f] [-pb] [-pt] [-pl] [-bh] data_dirs [data_dirs ...] {unet3d,dlrm}
+
+  Generate step breakdowns, throughputs and latencies plots from UNET3D and DLRM instrumentation data.
+
+  positional arguments:
+    data_dirs             Data directories
+    {unet3d,dlrm}         Workload
+
+  options:
+    -h, --help            show this help message and exit
+    -o OUTPUT_DIR, --output-dir OUTPUT_DIR
+                          Output directory. Defaults to the data directory for single dir and 'data_step_breakdown' for multiple data directories.
+    -t TITLE, --title TITLE
+                          Additonal string to put after workload name for plots
+    -l, --legend          Add legend to plots
+    -f, --fit             Fit model to distributions or not
+    -pb, --breakdown      Plot the step breakdown.
+    -pt, --throughputs    Plot the throughputs.
+    -pl, --latencies      Plot the latencies.
+    -bh, --big-histo      Save file with all compute time distributions and fits for the annex.
   ```
-  $ python3 proc_instru_data.py -h
-    usage: proc_instru_data.py [-h] [-o OUTPUT_DIR] [-t TITLE] [-l] [-f] [-pb] [-pt] [-pl] [-bh] data_dirs [data_dirs ...] {unet3d,dlrm}
-
-    Generate step breakdowns, throughputs and latencies plots from UNET3D and DLRM instrumentation data.
-
-    positional arguments:
-      data_dirs             Data directories
-      {unet3d,dlrm}         Workload
-
-    options:
-      -h, --help            show this help message and exit
-      -o OUTPUT_DIR, --output-dir OUTPUT_DIR
-                            Output directory. Defaults to the data directory for single dir and 'data_step_breakdown' for multiple data directories.
-      -t TITLE, --title TITLE
-                            Additonal string to put after workload name for plots
-      -l, --legend          Add legend to plots
-      -f, --fit             Fit model to distributions or not
-      -pb, --breakdown      Plot the step breakdown.
-      -pt, --throughputs    Plot the throughputs.
-      -pl, --latencies      Plot the latencies.
-      -bh, --big-histo      Save file with all compute time distributions and fits for the annex.
-    ```
 
 
 ### For BERT:

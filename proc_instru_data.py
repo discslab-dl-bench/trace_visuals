@@ -1067,8 +1067,6 @@ def plot_full_breakdown(plotting_data, output_dir, workload, sharey=True, legend
 
 
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate step breakdowns, throughputs and latencies plots from UNET3D and DLRM instrumentation data.")
     parser.add_argument("data_dirs", nargs='+', help="Data directories")
